@@ -38,11 +38,20 @@ class AzaleaLoader {
             }, 500);
         } catch (error) {
             console.error('Failed to initialize VM:', error);
-            this.updateStatus('Error: ' + error.message);
+            const errorMsg = error?.message || error?.toString() || 'Unknown error';
+            this.updateStatus('Error: ' + errorMsg);
+            
+            // Show helpful message in console
+            console.error('VM initialization failed. Possible causes:');
+            console.error('1. Network connectivity issues');
+            console.error('2. CDN blocking or CORS restrictions');
+            console.error('3. Browser compatibility issues');
+            console.error('Please check the browser console for more details.');
+            
             // Still show the VM container even if there's an error
             setTimeout(() => {
                 this.hideSplash();
-            }, 2000);
+            }, 3000);
         }
     }
 
@@ -53,16 +62,48 @@ class AzaleaLoader {
                 return;
             }
 
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/gh/copy/v86@master/build/libv86.js';
-            script.onload = () => {
-                // Wait a bit for V86Starter to be available
-                setTimeout(resolve, 100);
+            // Try multiple CDN sources for reliability
+            // Note: v86 library must be loaded from a CDN that supports CORS
+            const cdnSources = [
+                'https://cdn.jsdelivr.net/gh/copy/v86@master/build/libv86.js',
+                'https://unpkg.com/v86@latest/build/libv86.js'
+            ];
+
+            let currentIndex = 0;
+
+            const tryLoad = () => {
+                if (currentIndex >= cdnSources.length) {
+                    reject(new Error('Failed to load v86 library from all CDN sources. Please check your internet connection.'));
+                    return;
+                }
+
+                const script = document.createElement('script');
+                script.src = cdnSources[currentIndex];
+                
+                script.onload = () => {
+                    // Wait a bit for V86Starter to be available
+                    setTimeout(() => {
+                        if (typeof V86Starter !== 'undefined') {
+                            resolve();
+                        } else {
+                            // Try next source if V86Starter still not available
+                            currentIndex++;
+                            tryLoad();
+                        }
+                    }, 200);
+                };
+                
+                script.onerror = (event) => {
+                    const errorDetails = event?.target?.src || cdnSources[currentIndex];
+                    console.warn(`Failed to load v86 from ${errorDetails}, trying next source...`);
+                    currentIndex++;
+                    tryLoad();
+                };
+                
+                document.head.appendChild(script);
             };
-            script.onerror = (error) => {
-                reject(new Error('Failed to load v86 library: ' + error));
-            };
-            document.head.appendChild(script);
+
+            tryLoad();
         });
     }
 
@@ -92,18 +133,22 @@ class AzaleaLoader {
             throw new Error('Linux VM screen container not found');
         }
         
+        // Use alternative CDN URLs for BIOS and images
+        const biosBase = 'https://cdn.jsdelivr.net/gh/copy/v86@master/bios';
+        const imagesBase = 'https://cdn.jsdelivr.net/gh/copy/v86@master/images';
+        
         this.vm = new V86Starter({
             screen_container: screenContainer,
             memory_size: 32 * 1024 * 1024, // 32MB
             vga_memory_size: 2 * 1024 * 1024, // 2MB
             bios: {
-                url: "https://cdn.jsdelivr.net/gh/copy/v86@master/bios/seabios.bin"
+                url: `${biosBase}/seabios.bin`
             },
             vga_bios: {
-                url: "https://cdn.jsdelivr.net/gh/copy/v86@master/bios/vgabios.bin"
+                url: `${biosBase}/vgabios.bin`
             },
             cdrom: {
-                url: "https://cdn.jsdelivr.net/gh/copy/v86@master/images/linux4.iso"
+                url: `${imagesBase}/linux4.iso`
             },
             autostart: true
         });
