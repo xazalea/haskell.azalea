@@ -1,7 +1,12 @@
 {
-  "buildCommand": "echo 'Static site - no build needed'",
+  "buildCommand": "npm run build",
   "outputDirectory": "public",
   "installCommand": "npm install",
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "@vercel/node"
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -29,4 +34,3 @@
     }
   ]
 }
-

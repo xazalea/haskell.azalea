@@ -73,6 +73,9 @@ class DesktopEnvironment {
             case 'vm':
                 windowElement = this.createVMWindow(windowId);
                 break;
+            case 'linux':
+                windowElement = this.createLinuxVMWindow(windowId);
+                break;
             default:
                 return;
         }
@@ -451,7 +454,8 @@ class DesktopEnvironment {
             browser: 'Web Browser',
             editor: 'Text Editor',
             settings: 'Settings',
-            vm: 'Virtual Machine'
+            vm: 'Virtual Machine',
+            linux: 'Linux VM'
         };
         return titles[app] || app;
     }
@@ -463,7 +467,8 @@ class DesktopEnvironment {
             browser: 'globe',
             editor: 'code',
             settings: 'cog',
-            vm: 'microchip'
+            vm: 'microchip',
+            linux: 'linux'
         };
         return icons[app] || 'window-maximize';
     }
@@ -536,6 +541,100 @@ class DesktopEnvironment {
                     controller.getState();
                 }
             }, 100);
+        }, 100);
+        
+        return window;
+    }
+
+    createLinuxVMWindow(id) {
+        const window = this.createWindow(id, 'Linux VM', 1000, 700);
+        const content = window.querySelector('.window-content');
+        content.className = 'window-content linux-vm-content';
+        content.innerHTML = `
+            <div class="linux-vm-container">
+                <div class="linux-vm-controls">
+                    <button id="linux-power-btn-${id}" class="vm-btn">
+                        <i class="fas fa-power-off"></i> Power On
+                    </button>
+                    <button id="linux-reset-btn-${id}" class="vm-btn">
+                        <i class="fas fa-redo"></i> Reset
+                    </button>
+                    <button id="linux-load-btn-${id}" class="vm-btn">
+                        <i class="fas fa-download"></i> Load Tiny Core
+                    </button>
+                    <select id="linux-distro-select-${id}" class="distro-select">
+                        <option value="tinycore">Tiny Core Linux</option>
+                    </select>
+                </div>
+                <div class="linux-vm-display">
+                    <div id="linux-vm-screen-${id}" class="linux-vm-screen"></div>
+                </div>
+                <div class="linux-vm-status">
+                    <div class="status-indicator" id="linux-status-${id}">
+                        <span class="status-dot"></span>
+                        <span>Ready</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Initialize Linux VM
+        setTimeout(() => {
+            const screenContainer = document.getElementById(`linux-vm-screen-${id}`);
+            const vm = new LinuxVM(`linux-vm-screen-${id}`, {
+                screen_container: screenContainer,
+                memory_size: 32 * 1024 * 1024,
+                vga_memory_size: 2 * 1024 * 1024,
+                bios: {
+                    url: "https://cdn.jsdelivr.net/gh/copy/v86@master/bios/seabios.bin"
+                },
+                vga_bios: {
+                    url: "https://cdn.jsdelivr.net/gh/copy/v86@master/bios/vgabios.bin"
+                }
+            });
+            
+            window.linuxVM = vm;
+            
+            // Button handlers
+            const powerBtn = document.getElementById(`linux-power-btn-${id}`);
+            const resetBtn = document.getElementById(`linux-reset-btn-${id}`);
+            const loadBtn = document.getElementById(`linux-load-btn-${id}`);
+            const statusEl = document.getElementById(`linux-status-${id}`);
+            
+            let poweredOn = false;
+            
+            powerBtn.addEventListener('click', async () => {
+                if (!poweredOn) {
+                    await vm.init();
+                    vm.powerOn();
+                    powerBtn.innerHTML = '<i class="fas fa-power-off"></i> Power Off';
+                    statusEl.innerHTML = '<span class="status-dot running"></span><span>Running</span>';
+                    poweredOn = true;
+                } else {
+                    vm.powerOff();
+                    powerBtn.innerHTML = '<i class="fas fa-power-off"></i> Power On';
+                    statusEl.innerHTML = '<span class="status-dot"></span><span>Stopped</span>';
+                    poweredOn = false;
+                }
+            });
+            
+            resetBtn.addEventListener('click', () => {
+                if (vm) {
+                    vm.reset();
+                }
+            });
+            
+            loadBtn.addEventListener('click', async () => {
+                try {
+                    statusEl.innerHTML = '<span class="status-dot loading"></span><span>Loading...</span>';
+                    await vm.init();
+                    await vm.loadLinuxImage(LinuxDistros.tinycore.image);
+                    statusEl.innerHTML = '<span class="status-dot"></span><span>Image Loaded</span>';
+                } catch (error) {
+                    console.error('Failed to load Linux image:', error);
+                    statusEl.innerHTML = '<span class="status-dot error"></span><span>Error Loading</span>';
+                }
+            });
         }, 100);
         
         return window;

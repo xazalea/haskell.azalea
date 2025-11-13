@@ -732,6 +732,125 @@ body {
     background: linear-gradient(135deg, var(--coral) 0%, var(--lavender) 100%);
 }
 
+/* Linux VM Window Styles */
+.linux-vm-content {
+    background: var(--dark-blue);
+    color: var(--white);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(135deg, var(--dark-blue) 0%, #2a2f3f 100%);
+}
+
+.linux-vm-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.linux-vm-controls {
+    padding: 15px;
+    background: var(--dark-blue);
+    border-bottom: 4px solid var(--lavender);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.distro-select {
+    padding: 10px 15px;
+    background: var(--lavender);
+    color: var(--white);
+    border: 3px solid var(--dark-blue);
+    border-radius: 0;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: auto;
+}
+
+.distro-select:focus {
+    outline: none;
+    border-color: var(--coral);
+}
+
+.linux-vm-display {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--black);
+    padding: 20px;
+    overflow: auto;
+    background: linear-gradient(135deg, #0a0a0a 0%, var(--dark-blue) 100%);
+}
+
+.linux-vm-screen {
+    width: 100%;
+    height: 100%;
+    min-height: 500px;
+    border: 5px solid var(--lavender);
+    background: var(--black);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+    border-radius: 0;
+    position: relative;
+}
+
+.linux-vm-screen canvas {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+.linux-vm-status {
+    padding: 15px;
+    background: var(--dark-blue);
+    border-top: 4px solid var(--lavender);
+    display: flex;
+    justify-content: center;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--coral);
+    border: 2px solid var(--dark-blue);
+}
+
+.status-dot.running {
+    background: #4ade80;
+    animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.status-dot.loading {
+    background: var(--tan);
+    animation: spin-dot 1s linear infinite;
+}
+
+.status-dot.error {
+    background: var(--coral);
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes spin-dot {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .desktop-icons {

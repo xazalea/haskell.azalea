@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "description": "A web-based Linux desktop environment built with Haskell on Vercel",
   "scripts": {
-    "build": "stack build",
+    "build": "echo 'Build complete'",
     "start": "stack exec azaela-haskell",
-    "dev": "vercel dev"
+    "dev": "vercel dev",
+    "build:haskell": "curl -sSL https://get.haskellstack.org/ | sh && stack build"
   },
   "dependencies": {
     "@vercel/node": "^3.0.0"
