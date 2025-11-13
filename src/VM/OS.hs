@@ -94,7 +94,7 @@ killProcess kernel pid = atomically $ do
       return True
     Nothing -> return False
 
--- System call handler
+-- System call handler (Linux-like system calls)
 handleSystemCall :: KernelState -> Word32 -> [Word64] -> IO Word64
 handleSystemCall kernel syscallId args = do
   let syscall = SystemCall
@@ -107,11 +107,16 @@ handleSystemCall kernel syscallId args = do
     syscalls <- readTVar (systemCalls kernel)
     writeTVar (systemCalls kernel) (syscall : syscalls)
   
-  -- Handle different system calls
+  -- Handle different system calls (Linux-like)
   case syscallId of
     1 -> return 0  -- SYS_WRITE
     2 -> return 0  -- SYS_READ
     3 -> return 0  -- SYS_OPEN
     4 -> return 0  -- SYS_CLOSE
+    5 -> do  -- SYS_FORK
+      pid <- createProcess kernel (T.pack "forked")
+      return $ fromIntegral pid
+    6 -> return 0  -- SYS_EXEC
+    7 -> return 0  -- SYS_EXIT
     _ -> return 0
 

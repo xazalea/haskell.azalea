@@ -25,12 +25,13 @@ class GasangVM {
         try {
             await this.loadWASM();
             this.setupCanvas();
-            this.vm = new this.wasmModule.GasangVM(
-                this.options.width,
-                this.options.height,
-                this.options.memorySize
-            );
-            console.log('Gasang VM initialized successfully');
+        // Use UnifiedVM (gasang-inspired) instead of GasangVM
+        this.vm = new this.wasmModule.UnifiedVM(
+            this.options.width,
+            this.options.height,
+            this.options.memorySize
+        );
+            console.log('Unified VM (Gasang-inspired) initialized successfully');
         } catch (error) {
             console.error('Failed to initialize Gasang VM:', error);
             throw error;
