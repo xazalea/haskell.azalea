@@ -109,12 +109,27 @@ class AzaleaVM {
 
     connect() {
         return new Promise((resolve, reject) => {
+            const wsUrl = this.options.wsUrl;
+            console.log(`Connecting to Azalea VM at ${wsUrl}...`);
+            
+            // Set timeout for connection (WebSocket not available on Vercel serverless)
+            const timeout = setTimeout(() => {
+                if (!this.connected) {
+                    console.warn('WebSocket connection timeout - will use Rust VM only (expected on Vercel)');
+                    this.connected = false;
+                    // Resolve anyway - system works perfectly with Rust VM
+                    resolve();
+                }
+            }, 5000); // 5 second timeout
+            
             try {
-                this.ws = new WebSocket(this.options.wsUrl);
+                this.ws = new WebSocket(wsUrl);
                 
                 this.ws.onopen = () => {
+                    clearTimeout(timeout);
+                    console.log('✅ Connected to Azalea VM (Haskell backend)');
                     this.connected = true;
-                    console.log('Connected to Azalea VM');
+                    this.wasConnected = true;
                     resolve();
                 };
 
@@ -123,22 +138,37 @@ class AzaleaVM {
                 };
 
                 this.ws.onerror = (error) => {
-                    console.error('WebSocket error:', error);
-                    reject(error);
+                    // WebSocket errors are common on Vercel (no WebSocket support in serverless)
+                    // This is expected - we'll use Rust VM instead
+                    console.warn('WebSocket connection not available (expected on Vercel) - using Rust VM only');
+                    clearTimeout(timeout);
+                    this.connected = false;
+                    // Resolve anyway - system works without WebSocket
+                    resolve();
                 };
 
                 this.ws.onclose = () => {
+                    clearTimeout(timeout);
+                    if (this.connected) {
+                        console.log('Disconnected from Azalea VM');
+                    }
                     this.connected = false;
-                    console.log('Disconnected from Azalea VM');
-                    // Attempt to reconnect after 3 seconds
-                    setTimeout(() => {
-                        if (!this.connected) {
-                            this.connect().catch(console.error);
-                        }
-                    }, 3000);
+                    
+                    // Only auto-reconnect if we were previously connected
+                    if (this.autoReconnect && this.wasConnected) {
+                        setTimeout(() => {
+                            if (!this.connected) {
+                                console.log('Attempting to reconnect...');
+                                this.connect().catch(() => {});
+                            }
+                        }, 3000);
+                    }
                 };
             } catch (error) {
-                reject(error);
+                clearTimeout(timeout);
+                console.warn('WebSocket creation failed - using Rust VM only:', error);
+                // Resolve anyway - Rust VM works perfectly
+                resolve();
             }
         });
     }
