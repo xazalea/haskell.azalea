@@ -23,6 +23,9 @@ class AzaleaLoader {
             
             this.updateStatus('Ready');
 
+            // Store VM reference globally for Firefox VM
+            window.azaleaLoader = this;
+
             // Hide splash and show VM after delay
             setTimeout(() => {
                 this.hideSplash();
