@@ -2,11 +2,6 @@
   "buildCommand": "npm run build:haskell",
   "outputDirectory": "public",
   "installCommand": "npm install",
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "@vercel/node"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",
