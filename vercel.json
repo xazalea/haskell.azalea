@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build:haskell",
+  "buildCommand": "bash build.sh || true",
   "outputDirectory": "public",
   "installCommand": "npm install",
   "rewrites": [
