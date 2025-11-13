@@ -15,13 +15,38 @@ class AzaleaVM {
         this.lastFrameTime = 0;
         this.fps = 0;
         this.frameCount = 0;
-        this.options = {
-            wsUrl: options.wsUrl || this.getWebSocketUrl(),
-            width: options.width || 1920,  // Full HD default
-            height: options.height || 1080,
-            autoConnect: options.autoConnect !== false,
-            targetFPS: options.targetFPS || 60
-        };
+        this.deviceDetector = null;
+        this.performanceProfile = null;
+        
+        // Detect device and get optimal settings
+        if (typeof DeviceDetector !== 'undefined') {
+            this.deviceDetector = new DeviceDetector();
+            this.performanceProfile = this.deviceDetector.performanceProfile;
+            const optimalSettings = this.deviceDetector.getOptimalSettings();
+            
+            this.options = {
+                wsUrl: options.wsUrl || this.getWebSocketUrl(),
+                width: options.width || optimalSettings.width,
+                height: options.height || optimalSettings.height,
+                autoConnect: options.autoConnect !== false,
+                targetFPS: options.targetFPS || optimalSettings.targetFPS,
+                pixelRatio: optimalSettings.pixelRatio || 1,
+                enableTouch: optimalSettings.enableTouch || false,
+                deviceType: optimalSettings.deviceType || 'desktop'
+            };
+        } else {
+            // Fallback if DeviceDetector not loaded
+            this.options = {
+                wsUrl: options.wsUrl || this.getWebSocketUrl(),
+                width: options.width || 1920,
+                height: options.height || 1080,
+                autoConnect: options.autoConnect !== false,
+                targetFPS: options.targetFPS || 60,
+                pixelRatio: window.devicePixelRatio || 1,
+                enableTouch: 'ontouchstart' in window,
+                deviceType: 'desktop'
+            };
+        }
         
         if (this.options.autoConnect) {
             this.init();
@@ -47,13 +72,36 @@ class AzaleaVM {
         }
 
         this.canvas = document.createElement('canvas');
-        this.canvas.width = this.options.width;
-        this.canvas.height = this.options.height;
-        this.canvas.style.width = '100%';
-        this.canvas.style.height = '100%';
-        this.canvas.style.imageRendering = 'pixelated';
-        this.container.appendChild(this.canvas);
+        
+        // High-DPI support - scale canvas for retina displays
+        const pixelRatio = this.options.pixelRatio || 1;
+        const logicalWidth = this.options.width;
+        const logicalHeight = this.options.height;
+        
+        // Set actual canvas size (physical pixels)
+        this.canvas.width = logicalWidth * pixelRatio;
+        this.canvas.height = logicalHeight * pixelRatio;
+        
+        // Set display size (CSS pixels)
+        this.canvas.style.width = logicalWidth + 'px';
+        this.canvas.style.height = logicalHeight + 'px';
+        
+        // Scale context for high-DPI
         this.ctx = this.canvas.getContext('2d');
+        this.ctx.scale(pixelRatio, pixelRatio);
+        
+        // Optimize rendering based on device
+        if (this.performanceProfile) {
+            this.ctx.imageSmoothingEnabled = this.performanceProfile.enableAdvancedFeatures;
+            this.ctx.imageSmoothingQuality = this.performanceProfile.enableAdvancedFeatures ? 'high' : 'medium';
+        } else {
+            this.ctx.imageSmoothingEnabled = true;
+            this.ctx.imageSmoothingQuality = 'high';
+        }
+        
+        this.canvas.style.imageRendering = 'auto';
+        this.canvas.style.touchAction = 'none'; // Prevent default touch behavior
+        this.container.appendChild(this.canvas);
     }
 
     connect() {
@@ -197,11 +245,18 @@ class AzaleaVM {
         const width = state.width || this.options.width;
         const height = state.height || this.options.height;
         const framebuffer = state.framebuffer;
+        const pixelRatio = this.options.pixelRatio || 1;
 
-        // Ensure canvas size matches framebuffer
-        if (this.canvas.width !== width || this.canvas.height !== height) {
-            this.canvas.width = width;
-            this.canvas.height = height;
+        // Ensure canvas size matches framebuffer (accounting for pixel ratio)
+        const physicalWidth = width * pixelRatio;
+        const physicalHeight = height * pixelRatio;
+        
+        if (this.canvas.width !== physicalWidth || this.canvas.height !== physicalHeight) {
+            this.canvas.width = physicalWidth;
+            this.canvas.height = physicalHeight;
+            this.canvas.style.width = width + 'px';
+            this.canvas.style.height = height + 'px';
+            this.ctx.scale(pixelRatio, pixelRatio);
         }
 
         // Use high-performance rendering with requestAnimationFrame
@@ -215,21 +270,20 @@ class AzaleaVM {
             const data = imageData.data;
             const length = Math.min(framebuffer.length, width * height);
 
-            // Optimized pixel conversion loop
+            // Optimized pixel conversion loop - use TypedArray for better performance
+            const buffer = new Uint32Array(data.buffer);
+            
             for (let i = 0; i < length; i++) {
                 const pixel = framebuffer[i];
-                const offset = i * 4;
-                
-                // Extract RGBA from 32-bit pixel value (ARGB format)
-                data[offset] = (pixel >> 16) & 0xFF;     // R
-                data[offset + 1] = (pixel >> 8) & 0xFF;  // G
-                data[offset + 2] = pixel & 0xFF;         // B
-                data[offset + 3] = 255;                   // A (fully opaque)
+                // Convert ARGB to RGBA and set directly in buffer
+                buffer[i] = (pixel << 8) | 0xFF; // Shift to RGBA format
             }
 
-            // Use high-quality rendering
-            this.ctx.imageSmoothingEnabled = false; // Pixel-perfect for VM
-            this.ctx.imageSmoothingQuality = 'high';
+            // Apply performance optimizations based on device
+            if (this.performanceProfile) {
+                this.ctx.imageSmoothingEnabled = this.performanceProfile.enableAdvancedFeatures;
+                this.ctx.imageSmoothingQuality = this.performanceProfile.enableAdvancedFeatures ? 'high' : 'medium';
+            }
             
             // Clear and draw with perfect quality
             this.ctx.clearRect(0, 0, width, height);
@@ -242,28 +296,86 @@ class AzaleaVM {
 
         // Keyboard input
         this.canvas.addEventListener('keydown', (e) => {
+            e.preventDefault();
             this.sendKeyboardEvent(e, true);
         });
 
         this.canvas.addEventListener('keyup', (e) => {
+            e.preventDefault();
             this.sendKeyboardEvent(e, false);
         });
 
-        // Mouse input
+        // Mouse input (desktop)
         this.canvas.addEventListener('mousedown', (e) => {
+            e.preventDefault();
             this.sendMouseEvent(e, true);
         });
 
         this.canvas.addEventListener('mouseup', (e) => {
+            e.preventDefault();
             this.sendMouseEvent(e, false);
         });
 
         this.canvas.addEventListener('mousemove', (e) => {
-            this.sendMouseEvent(e, false);
+            if (e.buttons > 0) { // Only if button is pressed
+                e.preventDefault();
+                this.sendMouseEvent(e, false);
+            }
         });
+
+        // Touch input (mobile/tablet)
+        if (this.options.enableTouch) {
+            this.canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.sendTouchEvent(e, true);
+            }, { passive: false });
+
+            this.canvas.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                this.sendTouchEvent(e, false);
+            }, { passive: false });
+
+            this.canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                this.sendTouchEvent(e, false);
+            }, { passive: false });
+        }
+
+        // Wheel/scroll for zoom
+        this.canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            // Could implement zoom functionality here
+        }, { passive: false });
 
         // Make canvas focusable for keyboard events
         this.canvas.setAttribute('tabindex', '0');
+    }
+
+    sendTouchEvent(event, pressed) {
+        if (!this.connected) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const touches = event.touches.length > 0 ? event.touches : event.changedTouches;
+        
+        if (touches.length > 0) {
+            const touch = touches[0];
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            
+            const x = Math.floor((touch.clientX - rect.left) * scaleX);
+            const y = Math.floor((touch.clientY - rect.top) * scaleY);
+
+            const mouseEvent = {
+                x: x,
+                y: y,
+                buttons: pressed ? 1 : 0,
+                button: 0,
+                pressed: pressed,
+                touch: true
+            };
+
+            this.sendRequest('mouse', mouseEvent).catch(console.error);
+        }
     }
 
     sendKeyboardEvent(event, pressed) {

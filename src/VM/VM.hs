@@ -21,10 +21,10 @@ data VMInstance = VMInstance
   , vmFileSystem :: IORef VFS
   }
 
--- Create new VM instance
-createVMInstance :: IO VMInstance
-createVMInstance = do
-  state <- createVM
+-- Create new VM instance with adaptive resolution
+createVMInstance :: Maybe (Int, Int) -> IO VMInstance
+createVMInstance resolution = do
+  state <- createVM resolution
   stateRef <- newIORef state
   vfs <- createVFS
   vfsRef <- newIORef vfs

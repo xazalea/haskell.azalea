@@ -101,12 +101,14 @@ defaultWidth = 1920  -- Full HD width
 defaultHeight :: Int
 defaultHeight = 1080  -- Full HD height
 
--- Create new VM state
-createVM :: IO VMState
-createVM = do
+-- Create new VM state with adaptive memory
+createVM :: Maybe (Int, Int) -> IO VMState
+createVM Nothing = createVM (Just (defaultWidth, defaultHeight))
+createVM (Just (width, height)) = do
   regs <- newArray (0, 15) 0
   mem <- newArray (0, fromIntegral memSize - 1) 0
-  fb <- newArray (0, defaultWidth * defaultHeight - 1) 0x00000000  -- Black
+  let fbSize = width * height
+  fb <- newArray (0, fbSize - 1) 0x00000000  -- Black
   return $ VMState
     { registers = regs
     , memory = mem
@@ -114,8 +116,8 @@ createVM = do
     , sp = stackBase + stackSize
     , flags = 0
     , framebuffer = fb
-    , fbWidth = defaultWidth
-    , fbHeight = defaultHeight
+    , fbWidth = width
+    , fbHeight = height
     , running = True
     }
 

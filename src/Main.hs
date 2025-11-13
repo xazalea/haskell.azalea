@@ -48,10 +48,10 @@ data VMResponse = VMResponse
   , state :: Value
   } deriving (Generic, ToJSON, FromJSON)
 
--- Global VM instance
+-- Global VM instance with default resolution
 vmInstance :: MVar VMInstance
 vmInstance = unsafePerformIO $ do
-  vm <- createVMInstance
+  vm <- createVMInstance Nothing  -- Will use default resolution
   newMVar vm
 
 -- Main application with WebSocket support

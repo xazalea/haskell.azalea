@@ -62,12 +62,11 @@ class AzaleaLoader {
             throw new Error('Linux VM screen container not found');
         }
         
-        // Initialize custom Haskell VM client - SUPER POWERFUL settings
+        // Initialize custom Haskell VM client - Adaptive settings based on device
+        // Settings will be automatically optimized by DeviceDetector
         this.vm = new AzaleaVM('linux-vm-screen', {
-            width: 1920,  // Full HD for stunning quality
-            height: 1080,
-            autoConnect: true,
-            targetFPS: 60  // Smooth 60 FPS rendering
+            autoConnect: true
+            // Width, height, and FPS will be auto-detected based on device capabilities
         });
 
         // Wait for connection
