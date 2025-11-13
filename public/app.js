@@ -88,12 +88,27 @@ class AzaleaLoader {
             
             const check = setInterval(() => {
                 attempts++;
-                if (this.vm && this.vm.connected) {
+                
+                // Check if Rust VM is ready (works immediately) or Haskell VM connected
+                const isReady = this.vm && (
+                    this.vm.rustVM || // Rust VM is always ready
+                    this.vm.haskellVM?.connected || // Haskell VM connected
+                    this.vm.activeVM // Any VM is active
+                );
+                
+                if (isReady) {
                     clearInterval(check);
+                    // VM is ready - Rust VM works perfectly without WebSocket
                     resolve();
                 } else if (attempts >= maxAttempts) {
                     clearInterval(check);
-                    reject(new Error('Failed to connect to VM'));
+                    // Even if connection fails, Rust VM should work
+                    if (this.vm && this.vm.rustVM) {
+                        console.log('✅ Using Rust VM only (WebSocket not available)');
+                        resolve();
+                    } else {
+                        reject(new Error('Failed to initialize VM'));
+                    }
                 }
             }, 100);
         });
