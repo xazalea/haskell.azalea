@@ -26,5 +26,11 @@ executable azaela-haskell
     process >= 1.6.16,
     filepath >= 1.4.2,
     array >= 0.5.4,
-    containers >= 0.6.5
+    containers >= 0.6.5,
+    websockets >= 0.12.7,
+    wai-websockets >= 3.0.1,
+    network >= 3.1.2,
+    stm >= 2.5.0,
+    time >= 1.11.1,
+    base64-bytestring >= 1.2.1
 

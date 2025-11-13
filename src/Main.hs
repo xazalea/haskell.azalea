@@ -21,6 +21,10 @@ import Data.IORef
 import System.IO.Unsafe
 import VM.VM
 import VM.Core
+import VM.Executor (exampleProgram)
+import VM.WebSocket
+import qualified Network.Wai.Handler.WebSockets as WaiWS
+import qualified Network.WebSockets as WS
 
 -- API Response types
 data ApiResponse = ApiResponse
@@ -50,9 +54,17 @@ vmInstance = unsafePerformIO $ do
   vm <- createVMInstance
   newMVar vm
 
--- Main application
+-- Main application with WebSocket support
 app :: Application
-app = cors (const $ Just simpleCorsResourcePolicy
+app = WaiWS.websocketsOr WS.defaultConnectionOptions wsApp httpApp
+
+-- WebSocket application
+wsApp :: WS.ServerApp
+wsApp pending = handleWebSocket vmInstance pending
+
+-- HTTP application
+httpApp :: Application
+httpApp = cors (const $ Just simpleCorsResourcePolicy
   { corsOrigins = Nothing
   , corsMethods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
   , corsRequestHeaders = ["Content-Type"]

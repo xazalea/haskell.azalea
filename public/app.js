@@ -1,5 +1,5 @@
-// Azalea - Direct Linux VM Loader
-// Removes desktop UI and loads directly into Linux
+// Azalea - Custom Haskell VM Loader
+// Connects to Haskell backend via WebSocket
 
 class AzaleaLoader {
     constructor() {
@@ -11,23 +11,18 @@ class AzaleaLoader {
     async init() {
         try {
             // Update splash screen status
-            this.updateStatus('Loading v86 emulator...');
+            this.updateStatus('Connecting to Azalea VM...');
             
-            // Wait for v86 library
-            await this.loadV86Library();
+            // Initialize custom Haskell VM
+            await this.initVM();
             
             this.updateStatus('Initializing VM...');
             
-            // Initialize Linux VM
-            await this.initVM();
-            
-            this.updateStatus('Booting Linux...');
-            
-            // Load Linux distribution
-            await this.loadLinux();
+            // Load initial program
+            await this.loadInitialProgram();
             
             this.updateStatus('Ready');
-            
+
             // Hide splash and show VM after delay
             setTimeout(() => {
                 this.hideSplash();
@@ -43,9 +38,9 @@ class AzaleaLoader {
             
             // Show helpful message in console
             console.error('VM initialization failed. Possible causes:');
-            console.error('1. Network connectivity issues');
-            console.error('2. CDN blocking or CORS restrictions');
-            console.error('3. Browser compatibility issues');
+            console.error('1. WebSocket connection failed');
+            console.error('2. Haskell backend not running');
+            console.error('3. Network connectivity issues');
             console.error('Please check the browser console for more details.');
             
             // Still show the VM container even if there's an error
@@ -55,131 +50,63 @@ class AzaleaLoader {
         }
     }
 
-    loadV86Library() {
-        return new Promise((resolve, reject) => {
-            if (typeof V86Starter !== 'undefined') {
-                resolve();
-                return;
-            }
-
-            // Try multiple CDN sources for reliability
-            // Note: v86 library must be loaded from a CDN that supports CORS
-            const cdnSources = [
-                'https://cdn.jsdelivr.net/gh/copy/v86@master/build/libv86.js',
-                'https://unpkg.com/v86@latest/build/libv86.js'
-            ];
-
-            let currentIndex = 0;
-
-            const tryLoad = () => {
-                if (currentIndex >= cdnSources.length) {
-                    reject(new Error('Failed to load v86 library from all CDN sources. Please check your internet connection.'));
-                    return;
-                }
-
-                const script = document.createElement('script');
-                script.src = cdnSources[currentIndex];
-                
-                script.onload = () => {
-                    // Wait a bit for V86Starter to be available
-                    setTimeout(() => {
-                        if (typeof V86Starter !== 'undefined') {
-                            resolve();
-                        } else {
-                            // Try next source if V86Starter still not available
-                            currentIndex++;
-                            tryLoad();
-                        }
-                    }, 200);
-                };
-                
-                script.onerror = (event) => {
-                    const errorDetails = event?.target?.src || cdnSources[currentIndex];
-                    console.warn(`Failed to load v86 from ${errorDetails}, trying next source...`);
-                    currentIndex++;
-                    tryLoad();
-                };
-                
-                document.head.appendChild(script);
-            };
-
-            tryLoad();
-        });
-    }
-
-    waitForV86() {
-        return new Promise((resolve, reject) => {
-            let attempts = 0;
-            const maxAttempts = 50; // 5 seconds max
-            
-            const check = setInterval(() => {
-                attempts++;
-                if (typeof V86Starter !== 'undefined') {
-                    clearInterval(check);
-                    resolve();
-                } else if (attempts >= maxAttempts) {
-                    clearInterval(check);
-                    reject(new Error('v86 library failed to load'));
-                }
-            }, 100);
-        });
-    }
-
     async initVM() {
-        await this.waitForV86();
+        // Load AzaleaVM client library
+        if (typeof AzaleaVM === 'undefined') {
+            // Load azalea-vm.js if not already loaded
+            await this.loadVMClient();
+        }
         
         const screenContainer = document.getElementById('linux-vm-screen');
         if (!screenContainer) {
             throw new Error('Linux VM screen container not found');
         }
         
-        // Use alternative CDN URLs for BIOS and images
-        const biosBase = 'https://cdn.jsdelivr.net/gh/copy/v86@master/bios';
-        const imagesBase = 'https://cdn.jsdelivr.net/gh/copy/v86@master/images';
-        
-        this.vm = new V86Starter({
-            screen_container: screenContainer,
-            memory_size: 32 * 1024 * 1024, // 32MB
-            vga_memory_size: 2 * 1024 * 1024, // 2MB
-            bios: {
-                url: `${biosBase}/seabios.bin`
-            },
-            vga_bios: {
-                url: `${biosBase}/vgabios.bin`
-            },
-            cdrom: {
-                url: `${imagesBase}/linux4.iso`
-            },
-            autostart: true
+        // Initialize custom Haskell VM client
+        this.vm = new AzaleaVM('linux-vm-screen', {
+            width: 800,
+            height: 600,
+            autoConnect: true
         });
 
-        // Wait for VM to be ready or timeout after 5 seconds
-        return new Promise((resolve) => {
-            let resolved = false;
-            const timeout = setTimeout(() => {
-                if (!resolved) {
-                    resolved = true;
-                    console.log('VM initialization timeout, continuing anyway...');
-                    resolve();
-                }
-            }, 5000);
+        // Wait for connection
+        return new Promise((resolve, reject) => {
+            let attempts = 0;
+            const maxAttempts = 50; // 5 seconds max
             
-            this.vm.add_listener("emulator-ready", () => {
-                if (!resolved) {
-                    resolved = true;
-                    clearTimeout(timeout);
+            const check = setInterval(() => {
+                attempts++;
+                if (this.vm && this.vm.connected) {
+                    clearInterval(check);
                     resolve();
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(check);
+                    reject(new Error('Failed to connect to VM'));
                 }
-            });
+            }, 100);
         });
     }
 
-    async loadLinux() {
-        // Linux image is loaded via cdrom in initVM
-        // Wait a bit for it to initialize
-        return new Promise((resolve) => {
-            setTimeout(resolve, 1000);
+    loadVMClient() {
+        return new Promise((resolve, reject) => {
+            if (typeof AzaleaVM !== 'undefined') {
+                resolve();
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = 'azalea-vm.js';
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Failed to load AzaleaVM client'));
+            document.head.appendChild(script);
         });
+    }
+
+    async loadInitialProgram() {
+        // Load a simple initial program to demonstrate the VM
+        if (this.vm) {
+            await this.vm.loadProgram([]);
+        }
     }
 
     hideSplash() {
@@ -209,17 +136,18 @@ class AzaleaLoader {
         }
 
         // Power button
-        powerBtn.addEventListener('click', () => {
+        powerBtn.addEventListener('click', async () => {
             if (!this.vm) return;
             
             if (!this.poweredOn) {
-                this.vm.run();
+                await this.vm.runVM();
                 powerBtn.innerHTML = '<i class="fas fa-power-off"></i>';
                 if (statusDot) statusDot.classList.add('running');
                 if (statusText) statusText.textContent = 'Running';
                 this.poweredOn = true;
             } else {
-                this.vm.stop();
+                // Disconnect VM
+                this.vm.disconnect();
                 powerBtn.innerHTML = '<i class="fas fa-power-off"></i>';
                 if (statusDot) statusDot.classList.remove('running');
                 if (statusText) statusText.textContent = 'Stopped';
@@ -228,37 +156,36 @@ class AzaleaLoader {
         });
 
         // Reset button
-        resetBtn.addEventListener('click', () => {
+        resetBtn.addEventListener('click', async () => {
             if (!this.vm) return;
             
-            this.vm.restart();
             if (statusText) statusText.textContent = 'Resetting...';
             if (statusDot) statusDot.classList.add('loading');
+            
+            // Reconnect VM
+            this.vm.disconnect();
+            await this.vm.connect();
+            
             setTimeout(() => {
                 if (statusDot) statusDot.classList.remove('loading');
                 if (statusText) statusText.textContent = 'Running';
             }, 2000);
         });
 
-        // Update status when VM starts
+        // Update status when VM connects
         if (this.vm) {
-            this.vm.add_listener("screen-update", () => {
-                if (!this.poweredOn && statusDot && statusText) {
-                    statusDot.classList.add('running');
-                    statusText.textContent = 'Running';
-                    this.poweredOn = true;
-                }
-            });
-            
-            // Auto-start the VM
-            setTimeout(() => {
-                if (this.vm && !this.poweredOn) {
-                    this.vm.run();
+            // Check connection status periodically
+            const checkStatus = setInterval(() => {
+                if (this.vm && this.vm.connected && !this.poweredOn) {
                     if (statusDot) statusDot.classList.add('running');
                     if (statusText) statusText.textContent = 'Running';
                     this.poweredOn = true;
+                } else if (this.vm && !this.vm.connected && this.poweredOn) {
+                    if (statusDot) statusDot.classList.remove('running');
+                    if (statusText) statusText.textContent = 'Disconnected';
+                    this.poweredOn = false;
                 }
-            }, 2000);
+            }, 1000);
         }
     }
 
