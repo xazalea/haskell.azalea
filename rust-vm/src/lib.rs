@@ -3,11 +3,14 @@ use web_sys::console;
 use serde::{Deserialize, Serialize};
 
 mod os_layer;
+mod vm_core;
 pub use os_layer::*;
+pub use vm_core::*;
 
 // Gasang-inspired VM implementation
 // We use gasang's architecture concepts but implement WASM-compatible version
 // This gives us the power of gasang while working in the browser
+// The actual gasang source is in gasang-src/ for reference
 
 // Create our own SoftMmu for WASM (simplified version of gasang's)
 struct SoftMmu {
@@ -135,21 +138,25 @@ impl UnifiedVM {
             return;
         }
         
-        // Execute one instruction using gasang if available
+        // Execute one instruction
+        // Use gasang MMU for memory operations if available
         if let Some(ref mut mmu) = self.gasang_mmu {
-            // Use gasang for advanced instruction execution
-            // This is a simplified version - full integration would use gasang's runtime
-            self.state.pc += 1;
+            // Advanced execution with gasang-inspired architecture
+            // Read instruction from memory
+            let mut buffer = [0u8; 4];
+            mmu.read_all_at(self.state.pc as u64, &mut buffer);
             
-            // Example: Simple increment operation
-            if self.state.pc < 100 {
+            // Decode and execute (simplified - full version would use gasang's instruction decoder)
+            // For now, execute simple operations
+            if self.state.pc < 1000 {
                 let index = (self.state.pc as usize) % self.state.registers.len();
                 self.state.registers[index] = self.state.registers[index].wrapping_add(1);
+                self.state.pc += 1;
             } else {
                 self.state.running = false;
             }
         } else {
-            // Fallback to simple execution
+            // Simple execution
             self.state.pc += 1;
         }
     }
