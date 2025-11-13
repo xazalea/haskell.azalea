@@ -19,6 +19,7 @@ class AzaleaVM {
         this.performanceProfile = null;
         this.offscreenCanvas = null;
         this.offscreenCtx = null;
+        this.wasConnected = false;
         
         // Detect device and get optimal settings
         if (typeof DeviceDetector !== 'undefined') {

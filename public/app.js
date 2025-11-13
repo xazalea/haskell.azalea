@@ -82,10 +82,10 @@ class AzaleaLoader {
             });
         }
 
-        // Wait for connection
+        // Wait for VM to be ready (Rust VM works immediately, Haskell may not connect)
         return new Promise((resolve, reject) => {
             let attempts = 0;
-            const maxAttempts = 50; // 5 seconds max
+            const maxAttempts = 10; // 1 second max - Rust VM is instant
             
             const check = setInterval(() => {
                 attempts++;

@@ -21,8 +21,10 @@ class VMManager {
             // Initialize both VMs in parallel
             if (typeof AzaleaVM !== 'undefined') {
                 initPromises.push(this.initHaskellVM().catch(e => {
-                    console.warn('Haskell VM initialization warning:', e);
-                    return null; // Continue even if one fails
+                    console.warn('Haskell VM WebSocket not available (expected on Vercel) - using Rust VM only:', e.message || e);
+                    // This is expected on Vercel - serverless functions don't support WebSockets
+                    // The system will work perfectly with just the Rust VM
+                    return null; // Continue gracefully
                 }));
             }
             
@@ -52,14 +54,16 @@ class VMManager {
             }
 
             console.log('🚀 Unified VM Manager initialized - EXTREME POWER MODE!');
-            console.log('   Haskell VM:', this.haskellVM ? '✅ Ready (Server-side power)' : '❌ Not available');
-            console.log('   Rust VM:', this.rustVM ? '✅ Ready (Client-side speed)' : '⚠️  Not available (using Haskell)');
+            console.log('   Haskell VM:', this.haskellVM && this.haskellVM.connected ? '✅ Connected (Server-side power)' : '⚠️  WebSocket not available (expected on Vercel)');
+            console.log('   Rust VM:', this.rustVM ? '✅ Ready (Client-side speed)' : '❌ Not available');
             console.log('   Unified OS:', this.unifiedOS ? '✅ Active (Process management enabled)' : '❌ Not available');
             
-            if (this.haskellVM && this.rustVM) {
+            if (this.haskellVM && this.haskellVM.connected && this.rustVM) {
                 console.log('   💪 DUAL VM MODE: Both VMs working together for maximum power!');
+            } else if (this.rustVM) {
+                console.log('   ⚡ Rust VM Mode: Client-side execution (fully functional, no WebSocket needed)');
             } else if (this.haskellVM) {
-                console.log('   ⚡ Single VM Mode: Haskell VM providing server-side execution');
+                console.log('   ⚡ Haskell VM Mode: Server-side execution');
             }
         } catch (error) {
             console.error('Failed to initialize VM Manager:', error);
