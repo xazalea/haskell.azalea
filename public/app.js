@@ -52,18 +52,30 @@ class AzaleaLoader {
 
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/gh/copy/v86@master/build/libv86.js';
-            script.onload = resolve;
-            script.onerror = reject;
+            script.onload = () => {
+                // Wait a bit for V86Starter to be available
+                setTimeout(resolve, 100);
+            };
+            script.onerror = (error) => {
+                reject(new Error('Failed to load v86 library: ' + error));
+            };
             document.head.appendChild(script);
         });
     }
 
     waitForV86() {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
+            let attempts = 0;
+            const maxAttempts = 50; // 5 seconds max
+            
             const check = setInterval(() => {
+                attempts++;
                 if (typeof V86Starter !== 'undefined') {
                     clearInterval(check);
                     resolve();
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(check);
+                    reject(new Error('v86 library failed to load'));
                 }
             }, 100);
         });
@@ -205,5 +217,19 @@ class AzaleaLoader {
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', () => {
-    new AzaleaLoader();
+    try {
+        new AzaleaLoader();
+    } catch (error) {
+        console.error('Failed to initialize Azalea:', error);
+        const statusEl = document.getElementById('splash-status');
+        if (statusEl) {
+            statusEl.textContent = 'Initialization error. Please refresh.';
+        }
+    }
+});
+
+// Handle unhandled promise rejections
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled promise rejection:', event.reason);
+    event.preventDefault(); // Prevent default browser error handling
 });
