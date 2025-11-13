@@ -1,10 +1,12 @@
 {
   "name": "azaela-haskell",
   "version": "1.0.0",
-  "description": "A web-based Linux desktop environment built with Haskell on Vercel",
+  "description": "A web-based Linux desktop environment built with Haskell and Rust on Vercel",
   "scripts": {
-    "build": "npm run build:haskell",
+    "build": "npm run build:rust && npm run build:haskell",
     "build:haskell": "bash build.sh",
+    "build:rust": "cd rust-vm && wasm-pack build --target web --out-dir ../public/pkg || echo 'Rust build failed (optional)'",
+    "build:rust:release": "cd rust-vm && wasm-pack build --target web --out-dir ../public/pkg --release",
     "start": "stack exec azaela-haskell",
     "dev": "vercel dev"
   },
@@ -13,7 +15,8 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "wasm-pack": "^0.12.0"
   }
 }
 

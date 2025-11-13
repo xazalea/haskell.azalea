@@ -1,31 +1,37 @@
-# Stack
+# Haskell
 .stack-work/
 dist/
 *.hi
 *.o
-*.dyn_hi
 *.dyn_o
-*.p_hi
-*.p_o
+*.dyn_hi
+.hpc/
+.hsenv
+.cabal-sandbox/
+cabal.sandbox.config
+*.prof
+*.aux
+*.hp
+*.ps
+*.pdf
 
-# Cabal
-dist-newstyle/
-*.cabal~
-cabal.project.local
-cabal.project.local~
+# Rust
+rust-vm/target/
+rust-vm/Cargo.lock
+rust-vm/**/*.wasm
+public/pkg/
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
 
 # Vercel
 .vercel
 
-# Node
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
 # IDE
-.idea/
 .vscode/
+.idea/
 *.swp
 *.swo
 *~

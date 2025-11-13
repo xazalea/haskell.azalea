@@ -1,7 +1,13 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Building Azalea..."
+echo "🚀 Building Azalea (Haskell + Rust)..."
+
+# Build Rust VM first (optional, won't fail if it doesn't work)
+if [ -d "rust-vm" ]; then
+    echo "🔨 Building Rust VM to WebAssembly..."
+    bash build-rust.sh || echo "⚠️  Rust build skipped (optional)"
+fi
 
 # Try to install system dependencies if possible (may not work on Vercel)
 if command -v yum &> /dev/null; then
@@ -21,13 +27,13 @@ if ! command -v stack &> /dev/null; then
 fi
 
 # Try to build Haskell, but don't fail if it doesn't work
-# (Frontend works without it since Linux VM runs client-side)
+# (Frontend works without it since VM can run client-side with Rust)
 echo "🔨 Attempting to compile Haskell..."
 if stack build --system-ghc 2>&1; then
     echo "✅ Haskell build successful!"
 else
-    echo "⚠️  Haskell build failed (this is okay - frontend works without it)"
-    echo "   The Linux VM runs entirely in the browser, so server-side Haskell is optional."
+    echo "⚠️  Haskell build failed (this is okay - Rust VM can run client-side)"
+    echo "   The VM can run entirely in the browser with Rust/WASM, so server-side Haskell is optional."
 fi
 
 echo "✅ Build process complete!"

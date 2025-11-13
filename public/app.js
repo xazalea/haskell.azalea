@@ -62,12 +62,20 @@ class AzaleaLoader {
             throw new Error('Linux VM screen container not found');
         }
         
-        // Initialize custom Haskell VM client - Adaptive settings based on device
-        // Settings will be automatically optimized by DeviceDetector
-        this.vm = new AzaleaVM('linux-vm-screen', {
-            autoConnect: true
-            // Width, height, and FPS will be auto-detected based on device capabilities
-        });
+        // Initialize VM Manager - Supports both Haskell and Rust VMs
+        // Automatically selects best VM based on availability and device capabilities
+        if (typeof VMManager !== 'undefined') {
+            // Use VM Manager for multi-VM support
+            this.vm = new VMManager('linux-vm-screen', {
+                vmType: 'auto', // Auto-select: tries Rust first, falls back to Haskell
+                autoConnect: true
+            });
+        } else {
+            // Fallback to Haskell VM only
+            this.vm = new AzaleaVM('linux-vm-screen', {
+                autoConnect: true
+            });
+        }
 
         // Wait for connection
         return new Promise((resolve, reject) => {
