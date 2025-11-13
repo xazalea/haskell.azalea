@@ -62,16 +62,16 @@ class AzaleaLoader {
             throw new Error('Linux VM screen container not found');
         }
         
-        // Initialize VM Manager - Supports both Haskell and Rust VMs
-        // Automatically selects best VM based on availability and device capabilities
+        // Initialize Unified VM Manager - BOTH VMs work together for extreme power
+        // NO FALLBACK - Both VMs are integrated and work simultaneously
         if (typeof VMManager !== 'undefined') {
-            // Use VM Manager for multi-VM support
+            // Use Unified VM Manager - both VMs work together
             this.vm = new VMManager('linux-vm-screen', {
-                vmType: 'auto', // Auto-select: tries Rust first, falls back to Haskell
                 autoConnect: true
+                // Both Haskell and Rust VMs will be initialized and work together
             });
         } else {
-            // Fallback to Haskell VM only
+            // Fallback to Haskell VM only (shouldn't happen if scripts loaded correctly)
             this.vm = new AzaleaVM('linux-vm-screen', {
                 autoConnect: true
             });

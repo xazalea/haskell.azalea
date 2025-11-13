@@ -1,0 +1,3 @@
+[submodule "rust-vm/gasang-src"]
+	path = rust-vm/gasang-src
+	url = https://github.com/ArtBlnd/gasang.git

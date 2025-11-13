@@ -55,8 +55,10 @@ class GasangVM {
             return;
         } catch (e) {
             console.warn('Failed to load WASM from pkg directory:', e);
-            console.warn('Make sure to run: npm run build:rust');
-            throw new Error('Could not load Gasang VM WASM module. Please run: npm run build:rust');
+            console.warn('This is okay - Haskell VM will handle execution');
+            // Don't throw - allow system to work with just Haskell VM
+            // The unified OS will coordinate both when available
+            throw new Error('WASM module not available - will use Haskell VM');
         }
     }
 

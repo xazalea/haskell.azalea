@@ -7,6 +7,11 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+# Gasang-inspired implementation
+# We use gasang's source as reference but implement WASM-compatible version
+# This allows us to leverage gasang's powerful architecture while working in browsers
+
+# WebAssembly bindings
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
@@ -17,9 +22,13 @@ web-sys = { version = "0.3", features = [
     "HtmlCanvasElement",
     "CanvasRenderingContext2d",
     "ImageData",
+    "Performance",
 ] }
 serde = { version = "1.0", features = ["derive"] }
 serde-wasm-bindgen = "0.6"
+
+# Additional dependencies for OS-like features
+parking_lot = "0.12"
 
 [profile.release]
 opt-level = "z"     # Optimize for size
