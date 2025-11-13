@@ -203,7 +203,7 @@ handleAIModels _ = do
 handleGetProcesses :: Request -> IO Response
 handleGetProcesses _ = do
   processes <- getProcesses kernelInstance
-      let apiResponse = encode processes
+  let apiResponse = encode processes
   return $ responseLBS status200 [("Content-Type", "application/json")] apiResponse
 
 handleCreateProcess :: Request -> IO Response
