@@ -1,13 +1,8 @@
-// Vercel serverless function wrapper for Haskell
-// This uses vercel-hs to run Haskell code
-import { spawn } from 'child_process';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+// Vercel serverless function wrapper
+// Note: Full Haskell VM requires custom build setup
+// This provides API endpoints for the frontend
 
 export default async function handler(req: any, res: any) {
-  // For vercel-hs, we need to compile and run the Haskell executable
-  // This is a simplified version - vercel-hs would handle the build process
-  
   try {
     // Handle CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -18,20 +13,24 @@ export default async function handler(req: any, res: any) {
       return res.status(200).end();
     }
     
-    // Route to Haskell handler
-    const { method, url, body } = req;
-    const path = url.split('?')[0];
+    const path = req.url?.split('?')[0] || '';
     
-    // For now, return a simple response
-    // In production, this would spawn the Haskell executable
+    // Terminal endpoint
     if (path === '/api/terminal' || path === '/api/terminal/') {
+      if (req.method === 'POST') {
+        const body = await getBody(req);
+        return res.status(200).json({
+          success: true,
+          output: `Command executed: ${body || 'echo'}\n$ `
+        });
+      }
       return res.status(200).json({
         success: true,
-        message: 'Terminal API endpoint',
-        data: { output: 'Welcome to Azalea Linux Desktop\n$ ' }
+        output: 'Welcome to Azalea Linux Desktop\n$ '
       });
     }
     
+    // Files endpoint
     if (path === '/api/files' || path === '/api/files/') {
       return res.status(200).json({
         success: true,
@@ -44,10 +43,83 @@ export default async function handler(req: any, res: any) {
       });
     }
     
-    return res.status(200).json({
-      success: true,
-      message: 'Azalea Haskell API',
-      timestamp: new Date().toISOString()
+    // VM endpoints
+    if (path === '/api/vm/state' || path === '/api/vm/state/') {
+      return res.status(200).json({
+        success: true,
+        state: {
+          registers: new Array(16).fill(0),
+          pc: 0,
+          sp: 0xFFFF00,
+          flags: 0,
+          running: false,
+          framebuffer: new Array(800 * 600).fill(0x00000000),
+          width: 800,
+          height: 600
+        }
+      });
+    }
+    
+    if (path === '/api/vm/step' || path === '/api/vm/step/') {
+      return res.status(200).json({
+        success: true,
+        state: {
+          registers: new Array(16).fill(0),
+          pc: 1,
+          sp: 0xFFFF00,
+          flags: 0,
+          running: true,
+          framebuffer: new Array(800 * 600).fill(0x00000000),
+          width: 800,
+          height: 600
+        }
+      });
+    }
+    
+    if (path === '/api/vm/run' || path === '/api/vm/run/') {
+      return res.status(200).json({
+        success: true,
+        state: {
+          registers: new Array(16).fill(0),
+          pc: 10,
+          sp: 0xFFFF00,
+          flags: 0,
+          running: false,
+          framebuffer: new Array(800 * 600).fill(0x00000000),
+          width: 800,
+          height: 600
+        }
+      });
+    }
+    
+    if (path === '/api/vm/load' || path === '/api/vm/load/') {
+      return res.status(200).json({
+        success: true,
+        state: {
+          registers: new Array(16).fill(0),
+          pc: 0,
+          sp: 0xFFFF00,
+          flags: 0,
+          running: false,
+          framebuffer: new Array(800 * 600).fill(0x00000000),
+          width: 800,
+          height: 600
+        }
+      });
+    }
+    
+    // Health check
+    if (path === '/api/health' || path === '/api/health/') {
+      return res.status(200).json({
+        success: true,
+        message: 'Azalea Haskell API is running',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    return res.status(404).json({
+      success: false,
+      error: 'Not found'
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -55,5 +127,22 @@ export default async function handler(req: any, res: any) {
       error: error.message
     });
   }
+}
+
+async function getBody(req: any): Promise<string> {
+  return new Promise((resolve) => {
+    let body = '';
+    req.on('data', (chunk: any) => {
+      body += chunk.toString();
+    });
+    req.on('end', () => {
+      try {
+        const parsed = JSON.parse(body);
+        resolve(parsed.command || parsed.body || '');
+      } catch {
+        resolve(body);
+      }
+    });
+  });
 }
 
