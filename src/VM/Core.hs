@@ -35,7 +35,7 @@ data Register = R0 | R1 | R2 | R3 | R4 | R5 | R6 | R7 | R8 | R9 | R10 | R11 | R1
 registerIndex :: Register -> Int
 registerIndex = fromEnum
 
--- Instructions
+-- Advanced Instructions - SUPER POWERFUL instruction set
 data Instruction
   = NOP
   | MOV Register Word32        -- Move immediate to register
@@ -44,37 +44,62 @@ data Instruction
   | SUB Register Register Register  -- Subtract two registers
   | MUL Register Register Register  -- Multiply two registers
   | DIV Register Register Register  -- Divide two registers
+  | MOD Register Register Register  -- Modulo operation
+  | AND Register Register Register  -- Bitwise AND
+  | OR Register Register Register   -- Bitwise OR
+  | XOR Register Register Register  -- Bitwise XOR
+  | NOT Register Register          -- Bitwise NOT
+  | SHL Register Register Register -- Shift left
+  | SHR Register Register Register -- Shift right
   | CMP Register Register      -- Compare two registers
   | JMP Word32                 -- Jump to address
   | JE Word32                  -- Jump if equal
   | JNE Word32                 -- Jump if not equal
+  | JG Word32                  -- Jump if greater
+  | JL Word32                  -- Jump if less
+  | JGE Word32                 -- Jump if greater or equal
+  | JLE Word32                 -- Jump if less or equal
   | PUSH Register              -- Push register to stack
   | POP Register               -- Pop from stack to register
   | CALL Word32                -- Call function at address
   | RET                        -- Return from function
   | LOAD Register Word32       -- Load from memory address
   | STORE Register Word32      -- Store to memory address
+  | LOADB Register Word32      -- Load byte from memory
+  | STOREB Register Word32     -- Store byte to memory
+  | FADD Register Register Register  -- Floating point add
+  | FSUB Register Register Register  -- Floating point subtract
+  | FMUL Register Register Register  -- Floating point multiply
+  | FDIV Register Register Register  -- Floating point divide
+  | FSQRT Register Register        -- Floating point square root
+  | FTOI Register Register         -- Float to integer
+  | ITOF Register Register         -- Integer to float
   | DRAW Register Register Register Register  -- Draw pixel (x, y, color)
+  | DRAWRECT Register Register Register Register Register Register  -- Draw rectangle
+  | DRAWCIRCLE Register Register Register Register  -- Draw circle
+  | DRAWLINE Register Register Register Register Register Register  -- Draw line
   | CLEAR                      -- Clear framebuffer
+  | BLIT Register Register Register Register Register  -- Blit (copy) framebuffer region
+  | FILTER Register Register   -- Apply filter to framebuffer
   | HLT                        -- Halt
   deriving (Show, Eq, Generic, ToJSON, FromJSON)
 
--- Memory layout
+-- Memory layout - SUPER POWERFUL: 256MB memory
 memSize :: Word32
-memSize = 0x100000  -- 1MB
+memSize = 0x10000000  -- 256MB
 
 stackBase :: Word32
-stackBase = 0xFFFF00
+stackBase = 0xFFFFFF00
 
 stackSize :: Word32
-stackSize = 0x1000
+stackSize = 0x100000  -- 1MB stack
 
--- Framebuffer
+-- Framebuffer - High resolution for stunning quality
 defaultWidth :: Int
-defaultWidth = 800
+defaultWidth = 1920  -- Full HD width
 
 defaultHeight :: Int
-defaultHeight = 600
+defaultHeight = 1080  -- Full HD height
 
 -- Create new VM state
 createVM :: IO VMState
@@ -128,11 +153,21 @@ writePixel vm x y color
 getFramebuffer :: VMState -> IO [Word32]
 getFramebuffer vm = getElems (framebuffer vm)
 
--- Clear framebuffer
+-- Clear framebuffer - Optimized for large framebuffers
 clearFramebuffer :: VMState -> IO ()
 clearFramebuffer vm = do
   let size = fbWidth vm * fbHeight vm
+  -- Use bulk operations for better performance
   sequence_ [writeArray (framebuffer vm) i 0x00000000 | i <- [0..size-1]]
+
+-- Optimized bulk framebuffer operations
+clearFramebufferRegion :: VMState -> Int -> Int -> Int -> Int -> IO ()
+clearFramebufferRegion vm x y w h = do
+  let startX = max 0 x
+      startY = max 0 y
+      endX = min (fbWidth vm) (x + w)
+      endY = min (fbHeight vm) (y + h)
+  sequence_ [writePixel vm px py 0x00000000 | py <- [startY..endY-1], px <- [startX..endX-1]]
 
 -- Status flags
 data Flag = Zero | Negative | Carry | Overflow

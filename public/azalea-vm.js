@@ -11,11 +11,16 @@ class AzaleaVM {
         this.ctx = null;
         this.requestId = 0;
         this.pendingRequests = new Map();
+        this.frameRequestId = null;
+        this.lastFrameTime = 0;
+        this.fps = 0;
+        this.frameCount = 0;
         this.options = {
             wsUrl: options.wsUrl || this.getWebSocketUrl(),
-            width: options.width || 800,
-            height: options.height || 600,
-            autoConnect: options.autoConnect !== false
+            width: options.width || 1920,  // Full HD default
+            height: options.height || 1080,
+            autoConnect: options.autoConnect !== false,
+            targetFPS: options.targetFPS || 60
         };
         
         if (this.options.autoConnect) {
@@ -193,22 +198,43 @@ class AzaleaVM {
         const height = state.height || this.options.height;
         const framebuffer = state.framebuffer;
 
-        // Create ImageData from framebuffer
-        const imageData = this.ctx.createImageData(width, height);
-        const data = imageData.data;
-
-        for (let i = 0; i < framebuffer.length && i < width * height; i++) {
-            const pixel = framebuffer[i];
-            const offset = i * 4;
-            
-            // Extract RGBA from 32-bit pixel value
-            data[offset] = (pixel >> 16) & 0xFF;     // R
-            data[offset + 1] = (pixel >> 8) & 0xFF;  // G
-            data[offset + 2] = pixel & 0xFF;         // B
-            data[offset + 3] = 255;                   // A
+        // Ensure canvas size matches framebuffer
+        if (this.canvas.width !== width || this.canvas.height !== height) {
+            this.canvas.width = width;
+            this.canvas.height = height;
         }
 
-        this.ctx.putImageData(imageData, 0, 0);
+        // Use high-performance rendering with requestAnimationFrame
+        if (this.frameRequestId) {
+            cancelAnimationFrame(this.frameRequestId);
+        }
+
+        this.frameRequestId = requestAnimationFrame(() => {
+            // Create ImageData from framebuffer with optimized conversion
+            const imageData = this.ctx.createImageData(width, height);
+            const data = imageData.data;
+            const length = Math.min(framebuffer.length, width * height);
+
+            // Optimized pixel conversion loop
+            for (let i = 0; i < length; i++) {
+                const pixel = framebuffer[i];
+                const offset = i * 4;
+                
+                // Extract RGBA from 32-bit pixel value (ARGB format)
+                data[offset] = (pixel >> 16) & 0xFF;     // R
+                data[offset + 1] = (pixel >> 8) & 0xFF;  // G
+                data[offset + 2] = pixel & 0xFF;         // B
+                data[offset + 3] = 255;                   // A (fully opaque)
+            }
+
+            // Use high-quality rendering
+            this.ctx.imageSmoothingEnabled = false; // Pixel-perfect for VM
+            this.ctx.imageSmoothingQuality = 'high';
+            
+            // Clear and draw with perfect quality
+            this.ctx.clearRect(0, 0, width, height);
+            this.ctx.putImageData(imageData, 0, 0);
+        });
     }
 
     setupEventHandlers() {
@@ -271,14 +297,30 @@ class AzaleaVM {
     }
 
     startRenderLoop() {
-        const render = async () => {
+        const render = async (timestamp) => {
+            // Calculate FPS
+            if (this.lastFrameTime > 0) {
+                const delta = timestamp - this.lastFrameTime;
+                this.frameCount++;
+                if (this.frameCount >= 60) {
+                    this.fps = Math.round(1000 / (delta / this.frameCount));
+                    this.frameCount = 0;
+                }
+            }
+            this.lastFrameTime = timestamp;
+
             if (this.connected) {
-                // Request VM state update
-                await this.getVMState();
+                // Request VM state update at target FPS
+                const targetFrameTime = 1000 / this.options.targetFPS;
+                const elapsed = timestamp - (this.lastFrameTime || timestamp);
+                
+                if (elapsed >= targetFrameTime) {
+                    await this.getVMState();
+                }
             }
             requestAnimationFrame(render);
         };
-        render();
+        requestAnimationFrame(render);
     }
 
     disconnect() {

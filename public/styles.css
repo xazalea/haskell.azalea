@@ -152,45 +152,120 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
-    background: linear-gradient(135deg, #0a0a0a 0%, var(--dark-blue) 100%);
+    padding: 30px;
+    background: 
+        linear-gradient(135deg, #0a0a0a 0%, var(--dark-blue) 50%, #0a0a0a 100%),
+        radial-gradient(circle at 50% 50%, rgba(108, 115, 156, 0.1) 0%, transparent 70%);
+    background-size: 100% 100%, 200% 200%;
+    animation: backgroundShift 20s ease-in-out infinite;
+    position: relative;
+    overflow: hidden;
+}
+
+.linux-vm-wrapper::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: 
+        radial-gradient(circle, rgba(222, 167, 133, 0.05) 0%, transparent 70%);
+    animation: rotate 30s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes backgroundShift {
+    0%, 100% { background-position: 0% 0%, 0% 0%; }
+    50% { background-position: 0% 0%, 100% 100%; }
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 .linux-vm-screen {
     width: 100%;
     height: 100%;
-    max-width: 1200px;
-    max-height: 800px;
-    border: 4px solid var(--lavender);
+    max-width: 100%;
+    max-height: 100%;
+    border: 5px solid var(--lavender);
     background: var(--black);
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.8);
+    box-shadow: 
+        0 0 60px rgba(108, 115, 156, 0.3),
+        0 8px 40px rgba(0, 0, 0, 0.8),
+        inset 0 0 100px rgba(0, 0, 0, 0.5);
     border-radius: 0;
     position: relative;
     overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.linux-vm-screen::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(108, 115, 156, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 50%, rgba(222, 167, 133, 0.1) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 1;
 }
 
 .linux-vm-screen canvas {
     width: 100%;
     height: 100%;
     display: block;
-    image-rendering: pixelated;
+    image-rendering: -webkit-optimize-contrast;
     image-rendering: crisp-edges;
+    image-rendering: pixelated;
+    image-rendering: auto;
+    filter: contrast(1.05) brightness(1.02);
+    position: relative;
+    z-index: 2;
+    transition: filter 0.3s ease;
+}
+
+.linux-vm-screen:hover canvas {
+    filter: contrast(1.1) brightness(1.05);
 }
 
 .vm-controls-bar {
-    padding: 15px 30px;
-    background: var(--dark-blue);
-    border-top: 4px solid var(--lavender);
+    padding: 20px 40px;
+    background: 
+        linear-gradient(180deg, var(--dark-blue) 0%, #2a2d3a 100%);
+    border-top: 5px solid var(--lavender);
     display: flex;
     align-items: center;
-    gap: 15px;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+    gap: 20px;
+    box-shadow: 
+        0 -8px 30px rgba(0, 0, 0, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    position: relative;
+}
+
+.vm-controls-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(222, 167, 133, 0.3) 50%, 
+        transparent 100%);
 }
 
 .control-btn {
-    width: 45px;
-    height: 45px;
-    background: var(--lavender);
+    width: 50px;
+    height: 50px;
+    background: 
+        linear-gradient(135deg, var(--lavender) 0%, #5a6180 100%);
     border: 3px solid var(--dark-blue);
     border-radius: 0;
     color: var(--white);
@@ -198,20 +273,49 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
-    transition: all 0.3s;
+    font-size: 20px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     font-weight: 600;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 
+        0 2px 8px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.control-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    transform: translate(-50%, -50%);
+    transition: width 0.3s, height 0.3s;
+}
+
+.control-btn:hover::before {
+    width: 100%;
+    height: 100%;
 }
 
 .control-btn:hover {
-    background: var(--coral);
+    background: linear-gradient(135deg, var(--coral) 0%, #b85a52 100%);
     border-color: var(--tan);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(197, 107, 98, 0.4);
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 
+        0 6px 20px rgba(197, 107, 98, 0.5),
+        0 0 30px rgba(222, 167, 133, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .control-btn:active {
-    transform: translateY(0);
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 
+        0 2px 10px rgba(197, 107, 98, 0.4),
+        inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .vm-status {
