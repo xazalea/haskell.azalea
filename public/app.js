@@ -31,7 +31,10 @@ class AzaleaLoader {
             // Hide splash and show VM after delay
             setTimeout(() => {
                 this.hideSplash();
-                this.setupControls();
+                // Wait a bit for DOM to be ready before setting up controls
+                setTimeout(() => {
+                    this.setupControls();
+                }, 100);
             }, 500);
         } catch (error) {
             console.error('Failed to initialize VM:', error);
@@ -154,35 +157,42 @@ class AzaleaLoader {
         
         const statusDot = statusEl.querySelector('.status-dot');
         const statusText = statusEl.querySelector('span:last-child');
+        
+        if (!statusDot || !statusText) {
+            console.error('Status elements not found');
+            return;
+        }
 
         // Power button
         powerBtn.addEventListener('click', () => {
+            if (!this.vm) return;
+            
             if (!this.poweredOn) {
                 this.vm.run();
                 powerBtn.innerHTML = '<i class="fas fa-power-off"></i>';
-                statusDot.classList.add('running');
-                statusText.textContent = 'Running';
+                if (statusDot) statusDot.classList.add('running');
+                if (statusText) statusText.textContent = 'Running';
                 this.poweredOn = true;
             } else {
                 this.vm.stop();
                 powerBtn.innerHTML = '<i class="fas fa-power-off"></i>';
-                statusDot.classList.remove('running');
-                statusText.textContent = 'Stopped';
+                if (statusDot) statusDot.classList.remove('running');
+                if (statusText) statusText.textContent = 'Stopped';
                 this.poweredOn = false;
             }
         });
 
         // Reset button
         resetBtn.addEventListener('click', () => {
-            if (this.vm) {
-                this.vm.restart();
-                statusText.textContent = 'Resetting...';
-                statusDot.classList.add('loading');
-                setTimeout(() => {
-                    statusDot.classList.remove('loading');
-                    statusText.textContent = 'Running';
-                }, 2000);
-            }
+            if (!this.vm) return;
+            
+            this.vm.restart();
+            if (statusText) statusText.textContent = 'Resetting...';
+            if (statusDot) statusDot.classList.add('loading');
+            setTimeout(() => {
+                if (statusDot) statusDot.classList.remove('loading');
+                if (statusText) statusText.textContent = 'Running';
+            }, 2000);
         });
 
         // Update status when VM starts
