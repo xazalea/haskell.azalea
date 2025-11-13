@@ -1,0 +1,35 @@
+# Stack
+.stack-work/
+dist/
+*.hi
+*.o
+*.dyn_hi
+*.dyn_o
+*.p_hi
+*.p_o
+
+# Cabal
+dist-newstyle/
+*.cabal~
+cabal.project.local
+cabal.project.local~
+
+# Vercel
+.vercel
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
