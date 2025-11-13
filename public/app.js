@@ -9,29 +9,38 @@ class AzaleaLoader {
     }
 
     async init() {
-        // Update splash screen status
-        this.updateStatus('Loading v86 emulator...');
-        
-        // Wait for v86 library
-        await this.loadV86Library();
-        
-        this.updateStatus('Initializing VM...');
-        
-        // Initialize Linux VM
-        await this.initVM();
-        
-        this.updateStatus('Loading Linux image...');
-        
-        // Load Linux distribution
-        await this.loadLinux();
-        
-        this.updateStatus('Ready');
-        
-        // Hide splash and show VM after delay
-        setTimeout(() => {
-            this.hideSplash();
-            this.setupControls();
-        }, 500);
+        try {
+            // Update splash screen status
+            this.updateStatus('Loading v86 emulator...');
+            
+            // Wait for v86 library
+            await this.loadV86Library();
+            
+            this.updateStatus('Initializing VM...');
+            
+            // Initialize Linux VM
+            await this.initVM();
+            
+            this.updateStatus('Booting Linux...');
+            
+            // Load Linux distribution
+            await this.loadLinux();
+            
+            this.updateStatus('Ready');
+            
+            // Hide splash and show VM after delay
+            setTimeout(() => {
+                this.hideSplash();
+                this.setupControls();
+            }, 500);
+        } catch (error) {
+            console.error('Failed to initialize VM:', error);
+            this.updateStatus('Error: ' + error.message);
+            // Still show the VM container even if there's an error
+            setTimeout(() => {
+                this.hideSplash();
+            }, 2000);
+        }
     }
 
     loadV86Library() {
@@ -64,6 +73,9 @@ class AzaleaLoader {
         await this.waitForV86();
         
         const screenContainer = document.getElementById('linux-vm-screen');
+        if (!screenContainer) {
+            throw new Error('Linux VM screen container not found');
+        }
         
         this.vm = new V86Starter({
             screen_container: screenContainer,
@@ -81,10 +93,23 @@ class AzaleaLoader {
             autostart: true
         });
 
-        // Wait for VM to be ready
+        // Wait for VM to be ready or timeout after 5 seconds
         return new Promise((resolve) => {
+            let resolved = false;
+            const timeout = setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    console.log('VM initialization timeout, continuing anyway...');
+                    resolve();
+                }
+            }, 5000);
+            
             this.vm.add_listener("emulator-ready", () => {
-                resolve();
+                if (!resolved) {
+                    resolved = true;
+                    clearTimeout(timeout);
+                    resolve();
+                }
             });
         });
     }
@@ -109,6 +134,12 @@ class AzaleaLoader {
         const powerBtn = document.getElementById('vm-power-btn');
         const resetBtn = document.getElementById('vm-reset-btn');
         const statusEl = document.getElementById('vm-status');
+        
+        if (!powerBtn || !resetBtn || !statusEl) {
+            console.error('Control elements not found');
+            return;
+        }
+        
         const statusDot = statusEl.querySelector('.status-dot');
         const statusText = statusEl.querySelector('span:last-child');
 
@@ -143,13 +174,25 @@ class AzaleaLoader {
         });
 
         // Update status when VM starts
-        this.vm.add_listener("screen-update", () => {
-            if (!this.poweredOn) {
-                statusDot.classList.add('running');
-                statusText.textContent = 'Running';
-                this.poweredOn = true;
-            }
-        });
+        if (this.vm) {
+            this.vm.add_listener("screen-update", () => {
+                if (!this.poweredOn && statusDot && statusText) {
+                    statusDot.classList.add('running');
+                    statusText.textContent = 'Running';
+                    this.poweredOn = true;
+                }
+            });
+            
+            // Auto-start the VM
+            setTimeout(() => {
+                if (this.vm && !this.poweredOn) {
+                    this.vm.run();
+                    if (statusDot) statusDot.classList.add('running');
+                    if (statusText) statusText.textContent = 'Running';
+                    this.poweredOn = true;
+                }
+            }, 2000);
+        }
     }
 
     updateStatus(message) {
