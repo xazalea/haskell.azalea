@@ -23,6 +23,8 @@ import VM.VM
 import VM.Core
 import VM.Executor (exampleProgram)
 import VM.WebSocket
+import VM.OS
+import VM.AIAssistant
 import qualified Network.Wai.Handler.WebSockets as WaiWS
 import qualified Network.WebSockets as WS
 
@@ -54,6 +56,16 @@ vmInstance = unsafePerformIO $ do
   vm <- createVMInstance Nothing  -- Will use default resolution
   newMVar vm
 
+-- Global kernel for OS features
+kernelInstance :: KernelState
+kernelInstance = unsafePerformIO createKernel
+
+-- Global AI Assistant
+aiAssistantInstance :: MVar AIAssistant
+aiAssistantInstance = unsafePerformIO $ do
+  assistant <- createAIAssistant kernelInstance vmInstance
+  newMVar assistant
+
 -- Main application with WebSocket support
 app :: Application
 app = WaiWS.websocketsOr WS.defaultConnectionOptions wsApp httpApp
@@ -82,6 +94,11 @@ httpApp = cors (const $ Just simpleCorsResourcePolicy
       ("POST", ["api", "vm", "step"]) -> handleVMStep req
       ("POST", ["api", "vm", "run"]) -> handleVMRun req
       ("POST", ["api", "vm", "load"]) -> handleVMLoad req
+      ("POST", ["api", "ai", "message"]) -> handleAIMessage req
+      ("GET", ["api", "ai", "models"]) -> handleAIModels req
+      ("GET", ["api", "processes"]) -> handleGetProcesses req
+      ("POST", ["api", "processes"]) -> handleCreateProcess req
+      ("DELETE", ["api", "processes", pid]) -> handleKillProcess req (read pid)
       _ -> return $ responseLBS status404 [] "Not Found"
     
     respond response
@@ -157,9 +174,62 @@ handleVMLoad req = do
   let response = encode $ VMResponse True stateJSON
   return $ responseLBS status200 [("Content-Type", "application/json")] response
 
+handleAIMessage :: Request -> IO Response
+handleAIMessage req = do
+  body <- requestBody req
+  let bodyText = unpack $ decodeUtf8 $ toStrict body
+  case decode (fromStrict $ encodeUtf8 $ pack bodyText) of
+    Just (Object obj) -> do
+      let message = maybe "" unpack (obj .:? "message" :: Maybe (Maybe Text))
+      assistant <- takeMVar aiAssistantInstance
+      response <- sendAIMessage assistant (pack message)
+      putMVar aiAssistantInstance assistant
+      let responseText = maybe "No response" unpack response
+          apiResponse = encode $ ApiResponse True (Just $ pack responseText) Nothing
+      return $ responseLBS status200 [("Content-Type", "application/json")] apiResponse
+    _ -> do
+      let apiResponse = encode $ ApiResponse False (Just "Invalid request") Nothing
+      return $ responseLBS status400 [("Content-Type", "application/json")] apiResponse
+
+handleAIModels :: Request -> IO Response
+handleAIModels _ = do
+  let models = [ "gpt-4.1-nano-2025-04-14", "gpt-4.1-2025-04-14", "gpt-5-mini",
+                 "gpt-o4-mini-2025-04-16", "deepseek-v3.1", "mistral-small-3.1-24b-instruct-2503",
+                 "codestral-2405", "codestral-2501", "gemini-2.5-flash-lite", "gemini-search",
+                 "llama-3.1-8B-instruct", "bidara", "glm-4.5-flash", "rtist" ]
+      apiResponse = encode $ ApiResponse True Nothing (Just $ object ["models" .= models])
+  return $ responseLBS status200 [("Content-Type", "application/json")] apiResponse
+
+handleGetProcesses :: Request -> IO Response
+handleGetProcesses _ = do
+  processes <- getProcesses kernelInstance
+      let apiResponse = encode processes
+  return $ responseLBS status200 [("Content-Type", "application/json")] apiResponse
+
+handleCreateProcess :: Request -> IO Response
+handleCreateProcess req = do
+  body <- requestBody req
+  let bodyText = unpack $ decodeUtf8 $ toStrict body
+  case decode (fromStrict $ encodeUtf8 $ pack bodyText) of
+    Just (Object obj) -> do
+      let name = maybe "unnamed" unpack (obj .:? "name" :: Maybe (Maybe Text))
+      pid <- createProcess kernelInstance (pack name)
+      let apiResponse = encode $ ApiResponse True (Just $ pack $ "Process created: " ++ show pid) (Just $ object ["pid" .= pid])
+      return $ responseLBS status200 [("Content-Type", "application/json")] apiResponse
+    _ -> do
+      let apiResponse = encode $ ApiResponse False (Just "Invalid request") Nothing
+      return $ responseLBS status400 [("Content-Type", "application/json")] apiResponse
+
+handleKillProcess :: Request -> Word32 -> IO Response
+handleKillProcess _ pid = do
+  success <- killProcess kernelInstance pid
+  let apiResponse = encode $ ApiResponse success (Just $ if success then "Process killed" else "Process not found") Nothing
+  return $ responseLBS status200 [("Content-Type", "application/json")] apiResponse
+
 main :: IO ()
 main = do
   port <- maybe 3000 read <$> (try (getEnv "PORT") :: IO (Either SomeException String))
   putStrLn $ "Starting Azalea Haskell server on port " ++ show port
+  putStrLn "AI Assistant enabled - OS control via natural language"
   run port app
 

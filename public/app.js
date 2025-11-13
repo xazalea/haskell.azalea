@@ -70,6 +70,11 @@ class AzaleaLoader {
                 autoConnect: true
                 // Both Haskell and Rust VMs will be initialized and work together
             });
+            
+            // Initialize AI Assistant after VM is ready
+            setTimeout(() => {
+                this.initAIAssistant();
+            }, 1000);
         } else {
             // Fallback to Haskell VM only (shouldn't happen if scripts loaded correctly)
             this.vm = new AzaleaVM('linux-vm-screen', {
@@ -201,6 +206,26 @@ class AzaleaLoader {
         const statusEl = document.getElementById('splash-status');
         if (statusEl) {
             statusEl.textContent = message;
+        }
+    }
+
+    initAIAssistant() {
+        if (typeof AIAssistant !== 'undefined' && typeof AIAssistantUI !== 'undefined') {
+            try {
+                // Create AI Assistant
+                this.aiAssistant = new AIAssistant(this.vm, {
+                    baseURL: 'https://api.llm7.io/v1',
+                    apiKey: 'unused',
+                    model: 'gpt-4.1-2025-04-14' // Powerful model
+                });
+
+                // Create AI Assistant UI
+                this.aiAssistantUI = new AIAssistantUI('ai-assistant-container', this.aiAssistant);
+                
+                console.log('🤖 AI Assistant initialized - Ready to control the OS!');
+            } catch (error) {
+                console.warn('AI Assistant initialization failed:', error);
+            }
         }
     }
 }
