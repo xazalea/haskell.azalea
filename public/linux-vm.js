@@ -1,5 +1,6 @@
 // Linux VM using v86 emulator
 // This runs a real Linux distribution in the browser
+// Simplified version for direct loading
 
 class LinuxVM {
     constructor(canvasId, options = {}) {

@@ -1,648 +1,166 @@
-// Azalea Linux Desktop - Main Application
-class DesktopEnvironment {
+// Azalea - Direct Linux VM Loader
+// Removes desktop UI and loads directly into Linux
+
+class AzaleaLoader {
     constructor() {
-        this.windows = new Map();
-        this.windowCounter = 0;
-        this.activeWindow = null;
+        this.vm = null;
+        this.poweredOn = false;
         this.init();
     }
 
-    init() {
-        this.setupEventListeners();
-        this.updateClock();
-        setInterval(() => this.updateClock(), 1000);
-    }
-
-    setupEventListeners() {
-        // Start menu
-        const startButton = document.getElementById('start-button');
-        const startMenu = document.getElementById('start-menu');
+    async init() {
+        // Update splash screen status
+        this.updateStatus('Loading v86 emulator...');
         
-        startButton.addEventListener('click', (e) => {
-            e.stopPropagation();
-            startMenu.classList.toggle('show');
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!startMenu.contains(e.target) && !startButton.contains(e.target)) {
-                startMenu.classList.remove('show');
-            }
-        });
-
-        // Desktop icons
-        document.querySelectorAll('.desktop-icon, .start-menu-item').forEach(icon => {
-            icon.addEventListener('click', (e) => {
-                const app = e.currentTarget.dataset.app;
-                if (app) {
-                    this.openApp(app);
-                    startMenu.classList.remove('show');
-                }
-            });
-        });
-    }
-
-    updateClock() {
-        const now = new Date();
-        const time = now.toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-        });
-        document.getElementById('time').textContent = time;
-    }
-
-    openApp(appName) {
-        const windowId = `window-${this.windowCounter++}`;
-        let windowElement;
-
-        switch(appName) {
-            case 'terminal':
-                windowElement = this.createTerminalWindow(windowId);
-                break;
-            case 'files':
-                windowElement = this.createFileManagerWindow(windowId);
-                break;
-            case 'browser':
-                windowElement = this.createBrowserWindow(windowId);
-                break;
-            case 'editor':
-                windowElement = this.createEditorWindow(windowId);
-                break;
-            case 'settings':
-                windowElement = this.createSettingsWindow(windowId);
-                break;
-            case 'vm':
-                windowElement = this.createVMWindow(windowId);
-                break;
-            case 'linux':
-                windowElement = this.createLinuxVMWindow(windowId);
-                break;
-            default:
-                return;
-        }
-
-        this.windows.set(windowId, {
-            id: windowId,
-            element: windowElement,
-            app: appName,
-            title: this.getAppTitle(appName)
-        });
-
-        document.getElementById('windows-container').appendChild(windowElement);
-        this.setActiveWindow(windowId);
-        this.updateTaskbar();
-    }
-
-    createTerminalWindow(id) {
-        const window = this.createWindow(id, 'Terminal', 800, 500);
-        const content = window.querySelector('.window-content');
-        content.className = 'window-content terminal-content';
+        // Wait for v86 library
+        await this.loadV86Library();
         
-        // Initialize xterm.js terminal
-        if (typeof Terminal !== 'undefined') {
-            try {
-                const terminal = new Terminal({
-                    cursorBlink: true,
-                    theme: {
-                        background: '#1e1e1e',
-                        foreground: '#00ff00'
-                    },
-                    fontSize: 14,
-                    fontFamily: 'Courier New, monospace'
-                });
-                
-                if (typeof FitAddon !== 'undefined') {
-                    const fitAddon = new FitAddon();
-                    terminal.loadAddon(fitAddon);
-                    terminal.open(content);
-                    
-                    // Fit terminal to container
-                    setTimeout(() => {
-                        fitAddon.fit();
-                    }, 100);
-                } else {
-                    terminal.open(content);
-                }
-                
-                terminal.writeln('Welcome to Azalea Linux Desktop');
-                terminal.writeln('Type "help" for available commands');
-                terminal.write('$ ');
-                
-                let currentLine = '';
-                terminal.onData(data => {
-                    if (data === '\r' || data === '\n') {
-                        terminal.write('\r\n');
-                        this.handleTerminalCommand(terminal, currentLine);
-                        currentLine = '';
-                        terminal.write('$ ');
-                    } else if (data === '\x7f' || data === '\b') {
-                        if (currentLine.length > 0) {
-                            currentLine = currentLine.slice(0, -1);
-                            terminal.write('\b \b');
-                        }
-                    } else if (data >= ' ') {
-                        currentLine += data;
-                        terminal.write(data);
-                    }
-                });
-                
-                // Store terminal reference
-                window.currentTerminal = terminal;
-            } catch (e) {
-                console.error('Failed to initialize terminal:', e);
-                content.innerHTML = `
-                    <div style="color: #00ff00; font-family: monospace; padding: 10px;">
-                        <div>Welcome to Azalea Linux Desktop</div>
-                        <div>Terminal initialization error. Please refresh.</div>
-                        <div>$ </div>
-                    </div>
-                `;
-            }
-        } else {
-            // Fallback if xterm.js not loaded
-            content.innerHTML = `
-                <div style="color: #00ff00; font-family: monospace; padding: 10px; height: 100%;">
-                    <div>Welcome to Azalea Linux Desktop</div>
-                    <div>Loading terminal...</div>
-                    <div>$ </div>
-                </div>
-            `;
-        }
-        
-        return window;
-    }
-
-    handleTerminalCommand(terminal, command) {
-        const cmd = command.trim().toLowerCase();
-        
-        if (cmd === 'help') {
-            terminal.writeln('Available commands:');
-            terminal.writeln('  help     - Show this help message');
-            terminal.writeln('  clear    - Clear the terminal');
-            terminal.writeln('  date     - Show current date and time');
-            terminal.writeln('  ls       - List files');
-            terminal.writeln('  pwd      - Print working directory');
-            terminal.writeln('  whoami   - Show current user');
-        } else if (cmd === 'clear') {
-            terminal.clear();
-        } else if (cmd === 'date') {
-            terminal.writeln(new Date().toString());
-        } else if (cmd === 'ls') {
-            terminal.writeln('Desktop  Documents  Downloads  home');
-        } else if (cmd === 'pwd') {
-            terminal.writeln('/home/user');
-        } else if (cmd === 'whoami') {
-            terminal.writeln('user');
-        } else if (cmd === '') {
-            // Empty command, do nothing
-        } else {
-            terminal.writeln(`Command not found: ${command}`);
-        }
-    }
-
-    createFileManagerWindow(id) {
-        const window = this.createWindow(id, 'File Manager', 700, 500);
-        const content = window.querySelector('.window-content');
-        content.className = 'window-content';
-        content.innerHTML = `
-            <div class="file-manager">
-                <div class="file-item">
-                    <i class="fas fa-home"></i>
-                    <span>Home</span>
-                </div>
-                <div class="file-item">
-                    <i class="fas fa-folder"></i>
-                    <span>Documents</span>
-                </div>
-                <div class="file-item">
-                    <i class="fas fa-download"></i>
-                    <span>Downloads</span>
-                </div>
-                <div class="file-item">
-                    <i class="fas fa-desktop"></i>
-                    <span>Desktop</span>
-                </div>
-                <div class="file-item">
-                    <i class="fas fa-image"></i>
-                    <span>Pictures</span>
-                </div>
-                <div class="file-item">
-                    <i class="fas fa-music"></i>
-                    <span>Music</span>
-                </div>
-                <div class="file-item">
-                    <i class="fas fa-video"></i>
-                    <span>Videos</span>
-                </div>
-            </div>
-        `;
-        return window;
-    }
-
-    createBrowserWindow(id) {
-        const window = this.createWindow(id, 'Web Browser', 900, 600);
-        const content = window.querySelector('.window-content');
-        content.className = 'window-content browser-content';
-        content.innerHTML = `
-            <div class="browser-toolbar">
-                <button><i class="fas fa-arrow-left"></i></button>
-                <button><i class="fas fa-arrow-right"></i></button>
-                <button><i class="fas fa-redo"></i></button>
-                <input type="text" class="browser-url" value="https://azalea.haskell" placeholder="Enter URL">
-                <button><i class="fas fa-home"></i></button>
-            </div>
-            <div class="browser-view">
-                <h1>Welcome to Azalea Browser</h1>
-                <p>This is a web browser running in your Linux desktop environment.</p>
-                <p>You can navigate to any URL using the address bar above.</p>
-            </div>
-        `;
-        return window;
-    }
-
-    createEditorWindow(id) {
-        const window = this.createWindow(id, 'Text Editor', 800, 500);
-        const content = window.querySelector('.window-content');
-        content.className = 'window-content editor-content';
-        content.innerHTML = `
-            <div class="editor-line">// Welcome to Azalea Text Editor</div>
-            <div class="editor-line"></div>
-            <div class="editor-line">function hello() {</div>
-            <div class="editor-line">    console.log("Hello, Azalea!");</div>
-            <div class="editor-line">}</div>
-            <div class="editor-line"></div>
-            <div class="editor-line">hello();</div>
-        `;
-        content.contentEditable = true;
-        return window;
-    }
-
-    createSettingsWindow(id) {
-        const window = this.createWindow(id, 'Settings', 600, 500);
-        const content = window.querySelector('.window-content');
-        content.className = 'window-content settings-content';
-        content.innerHTML = `
-            <div class="settings-section">
-                <h3>Appearance</h3>
-                <div class="setting-item">
-                    <span class="setting-label">Theme</span>
-                    <select>
-                        <option>Dark</option>
-                        <option>Light</option>
-                        <option>Auto</option>
-                    </select>
-                </div>
-            </div>
-            <div class="settings-section">
-                <h3>System</h3>
-                <div class="setting-item">
-                    <span class="setting-label">Hostname</span>
-                    <span>azalea.haskell</span>
-                </div>
-                <div class="setting-item">
-                    <span class="setting-label">OS</span>
-                    <span>Azalea Linux</span>
-                </div>
-            </div>
-        `;
-        return window;
-    }
-
-    createWindow(id, title, width, height) {
-        const window = document.createElement('div');
-        window.className = 'window';
-        window.id = id;
-        window.style.width = width + 'px';
-        window.style.height = height + 'px';
-        window.style.left = (Math.random() * 200 + 50) + 'px';
-        window.style.top = (Math.random() * 100 + 50) + 'px';
-
-        window.innerHTML = `
-            <div class="window-header">
-                <div class="window-title">${title}</div>
-                <div class="window-controls">
-                    <button class="window-control minimize" title="Minimize">
-                        <i class="fas fa-minus"></i>
-                    </button>
-                    <button class="window-control maximize" title="Maximize">
-                        <i class="fas fa-square"></i>
-                    </button>
-                    <button class="window-control close" title="Close">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="window-content"></div>
-        `;
-
-        // Window controls
-        const header = window.querySelector('.window-header');
-        const closeBtn = window.querySelector('.window-control.close');
-        const minimizeBtn = window.querySelector('.window-control.minimize');
-        const maximizeBtn = window.querySelector('.window-control.maximize');
-
-        // Make window draggable
-        this.makeDraggable(window, header);
-
-        // Close button
-        closeBtn.addEventListener('click', () => this.closeWindow(id));
-
-        // Minimize button
-        minimizeBtn.addEventListener('click', () => {
-            window.style.display = 'none';
-            this.updateTaskbar();
-        });
-
-        // Maximize button
-        maximizeBtn.addEventListener('click', () => {
-            if (window.style.width === '100vw') {
-                window.style.width = width + 'px';
-                window.style.height = height + 'px';
-            } else {
-                window.style.width = '100vw';
-                window.style.height = 'calc(100vh - 60px)';
-                window.style.left = '0';
-                window.style.top = '0';
-            }
-        });
-
-        // Click to focus
-        window.addEventListener('mousedown', () => this.setActiveWindow(id));
-
-        return window;
-    }
-
-    makeDraggable(window, header) {
-        let isDragging = false;
-        let currentX, currentY, initialX, initialY;
-
-        header.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.window-controls')) return;
-            isDragging = true;
-            initialX = e.clientX - window.offsetLeft;
-            initialY = e.clientY - window.offsetTop;
-            this.setActiveWindow(window.id);
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (isDragging) {
-                e.preventDefault();
-                currentX = e.clientX - initialX;
-                currentY = e.clientY - initialY;
-                window.style.left = currentX + 'px';
-                window.style.top = currentY + 'px';
-            }
-        });
-
-        document.addEventListener('mouseup', () => {
-            isDragging = false;
-        });
-    }
-
-    setActiveWindow(id) {
-        if (this.activeWindow) {
-            const prevWindow = this.windows.get(this.activeWindow);
-            if (prevWindow) {
-                prevWindow.element.classList.remove('active');
-            }
-        }
-        this.activeWindow = id;
-        const window = this.windows.get(id);
-        if (window) {
-            window.element.classList.add('active');
-            window.element.style.zIndex = 200;
-        }
-        this.updateTaskbar();
-    }
-
-    closeWindow(id) {
-        const window = this.windows.get(id);
-        if (window) {
-            window.element.remove();
-            this.windows.delete(id);
-            if (this.activeWindow === id) {
-                this.activeWindow = null;
-            }
-            this.updateTaskbar();
-        }
-    }
-
-    updateTaskbar() {
-        const taskbarApps = document.getElementById('taskbar-apps');
-        taskbarApps.innerHTML = '';
-
-        this.windows.forEach((window, id) => {
-            const app = document.createElement('div');
-            app.className = 'taskbar-app';
-            if (id === this.activeWindow) {
-                app.classList.add('active');
-            }
-            app.innerHTML = `<i class="fas fa-${this.getAppIcon(window.app)}"></i> ${window.title}`;
-            app.addEventListener('click', () => {
-                if (window.element.style.display === 'none') {
-                    window.element.style.display = 'flex';
-                }
-                this.setActiveWindow(id);
-            });
-            taskbarApps.appendChild(app);
-        });
-    }
-
-    getAppTitle(app) {
-        const titles = {
-            terminal: 'Terminal',
-            files: 'File Manager',
-            browser: 'Web Browser',
-            editor: 'Text Editor',
-            settings: 'Settings',
-            vm: 'Virtual Machine',
-            linux: 'Linux VM'
-        };
-        return titles[app] || app;
-    }
-
-    getAppIcon(app) {
-        const icons = {
-            terminal: 'terminal',
-            files: 'folder',
-            browser: 'globe',
-            editor: 'code',
-            settings: 'cog',
-            vm: 'microchip',
-            linux: 'linux'
-        };
-        return icons[app] || 'window-maximize';
-    }
-
-    createVMWindow(id) {
-        const window = this.createWindow(id, 'Virtual Machine', 900, 700);
-        const content = window.querySelector('.window-content');
-        content.className = 'window-content vm-content';
-        content.innerHTML = `
-            <div class="vm-container">
-                <div class="vm-controls">
-                    <button id="vm-load-btn-${id}" class="vm-btn">
-                        <i class="fas fa-download"></i> Load Program
-                    </button>
-                    <button id="vm-step-btn-${id}" class="vm-btn">
-                        <i class="fas fa-step-forward"></i> Step
-                    </button>
-                    <button id="vm-run-btn-${id}" class="vm-btn">
-                        <i class="fas fa-play"></i> Run
-                    </button>
-                </div>
-                <div class="vm-display-container">
-                    <canvas id="vm-canvas-${id}" width="800" height="600"></canvas>
-                </div>
-                <div class="vm-info">
-                    <div class="vm-status">
-                        <div class="status-item">
-                            <span class="status-label">PC:</span>
-                            <span id="vm-pc-${id}">0x0</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">SP:</span>
-                            <span id="vm-sp-${id}">0x0</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">Flags:</span>
-                            <span id="vm-flags-${id}">0x0</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">Status:</span>
-                            <span id="vm-running-${id}" class="status-stopped">Stopped</span>
-                        </div>
-                    </div>
-                    <div class="vm-registers">
-                        <h4>Registers</h4>
-                        <div id="registers-display-${id}" class="registers-grid"></div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // Initialize VM controller for this window
-        setTimeout(() => {
-            const controller = new VMController(`vm-canvas-${id}`, id);
-            window.vmController = controller;
-            controller.loadProgram();
-            
-            // Set up button handlers
-            const loadBtn = document.getElementById(`vm-load-btn-${id}`);
-            const stepBtn = document.getElementById(`vm-step-btn-${id}`);
-            const runBtn = document.getElementById(`vm-run-btn-${id}`);
-            
-            if (loadBtn) loadBtn.addEventListener('click', () => controller.loadProgram());
-            if (stepBtn) stepBtn.addEventListener('click', () => controller.step());
-            if (runBtn) runBtn.addEventListener('click', () => controller.run());
-            
-            // Auto-refresh display
-            setInterval(() => {
-                if (window.style.display !== 'none') {
-                    controller.getState();
-                }
-            }, 100);
-        }, 100);
-        
-        return window;
-    }
-
-    createLinuxVMWindow(id) {
-        const window = this.createWindow(id, 'Linux VM', 1000, 700);
-        const content = window.querySelector('.window-content');
-        content.className = 'window-content linux-vm-content';
-        content.innerHTML = `
-            <div class="linux-vm-container">
-                <div class="linux-vm-controls">
-                    <button id="linux-power-btn-${id}" class="vm-btn">
-                        <i class="fas fa-power-off"></i> Power On
-                    </button>
-                    <button id="linux-reset-btn-${id}" class="vm-btn">
-                        <i class="fas fa-redo"></i> Reset
-                    </button>
-                    <button id="linux-load-btn-${id}" class="vm-btn">
-                        <i class="fas fa-download"></i> Load Tiny Core
-                    </button>
-                    <select id="linux-distro-select-${id}" class="distro-select">
-                        <option value="tinycore">Tiny Core Linux</option>
-                    </select>
-                </div>
-                <div class="linux-vm-display">
-                    <div id="linux-vm-screen-${id}" class="linux-vm-screen"></div>
-                </div>
-                <div class="linux-vm-status">
-                    <div class="status-indicator" id="linux-status-${id}">
-                        <span class="status-dot"></span>
-                        <span>Ready</span>
-                    </div>
-                </div>
-            </div>
-        `;
+        this.updateStatus('Initializing VM...');
         
         // Initialize Linux VM
-        setTimeout(() => {
-            const screenContainer = document.getElementById(`linux-vm-screen-${id}`);
-            const vm = new LinuxVM(`linux-vm-screen-${id}`, {
-                screen_container: screenContainer,
-                memory_size: 32 * 1024 * 1024,
-                vga_memory_size: 2 * 1024 * 1024,
-                bios: {
-                    url: "https://cdn.jsdelivr.net/gh/copy/v86@master/bios/seabios.bin"
-                },
-                vga_bios: {
-                    url: "https://cdn.jsdelivr.net/gh/copy/v86@master/bios/vgabios.bin"
-                }
-            });
-            
-            window.linuxVM = vm;
-            
-            // Button handlers
-            const powerBtn = document.getElementById(`linux-power-btn-${id}`);
-            const resetBtn = document.getElementById(`linux-reset-btn-${id}`);
-            const loadBtn = document.getElementById(`linux-load-btn-${id}`);
-            const statusEl = document.getElementById(`linux-status-${id}`);
-            
-            let poweredOn = false;
-            
-            powerBtn.addEventListener('click', async () => {
-                if (!poweredOn) {
-                    await vm.init();
-                    vm.powerOn();
-                    powerBtn.innerHTML = '<i class="fas fa-power-off"></i> Power Off';
-                    statusEl.innerHTML = '<span class="status-dot running"></span><span>Running</span>';
-                    poweredOn = true;
-                } else {
-                    vm.powerOff();
-                    powerBtn.innerHTML = '<i class="fas fa-power-off"></i> Power On';
-                    statusEl.innerHTML = '<span class="status-dot"></span><span>Stopped</span>';
-                    poweredOn = false;
-                }
-            });
-            
-            resetBtn.addEventListener('click', () => {
-                if (vm) {
-                    vm.reset();
-                }
-            });
-            
-            loadBtn.addEventListener('click', async () => {
-                try {
-                    statusEl.innerHTML = '<span class="status-dot loading"></span><span>Loading...</span>';
-                    await vm.init();
-                    await vm.loadLinuxImage(LinuxDistros.tinycore.image);
-                    statusEl.innerHTML = '<span class="status-dot"></span><span>Image Loaded</span>';
-                } catch (error) {
-                    console.error('Failed to load Linux image:', error);
-                    statusEl.innerHTML = '<span class="status-dot error"></span><span>Error Loading</span>';
-                }
-            });
-        }, 100);
+        await this.initVM();
         
-        return window;
+        this.updateStatus('Loading Linux image...');
+        
+        // Load Linux distribution
+        await this.loadLinux();
+        
+        this.updateStatus('Ready');
+        
+        // Hide splash and show VM after delay
+        setTimeout(() => {
+            this.hideSplash();
+            this.setupControls();
+        }, 500);
+    }
+
+    loadV86Library() {
+        return new Promise((resolve, reject) => {
+            if (typeof V86Starter !== 'undefined') {
+                resolve();
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/gh/copy/v86@master/build/libv86.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    waitForV86() {
+        return new Promise((resolve) => {
+            const check = setInterval(() => {
+                if (typeof V86Starter !== 'undefined') {
+                    clearInterval(check);
+                    resolve();
+                }
+            }, 100);
+        });
+    }
+
+    async initVM() {
+        await this.waitForV86();
+        
+        const screenContainer = document.getElementById('linux-vm-screen');
+        
+        this.vm = new V86Starter({
+            screen_container: screenContainer,
+            memory_size: 32 * 1024 * 1024, // 32MB
+            vga_memory_size: 2 * 1024 * 1024, // 2MB
+            bios: {
+                url: "https://cdn.jsdelivr.net/gh/copy/v86@master/bios/seabios.bin"
+            },
+            vga_bios: {
+                url: "https://cdn.jsdelivr.net/gh/copy/v86@master/bios/vgabios.bin"
+            },
+            cdrom: {
+                url: "https://cdn.jsdelivr.net/gh/copy/v86@master/images/linux4.iso"
+            },
+            autostart: true
+        });
+
+        // Wait for VM to be ready
+        return new Promise((resolve) => {
+            this.vm.add_listener("emulator-ready", () => {
+                resolve();
+            });
+        });
+    }
+
+    async loadLinux() {
+        // Linux image is loaded via cdrom in initVM
+        // Wait a bit for it to initialize
+        return new Promise((resolve) => {
+            setTimeout(resolve, 1000);
+        });
+    }
+
+    hideSplash() {
+        const splash = document.getElementById('splash-screen');
+        const container = document.getElementById('linux-container');
+        
+        splash.style.display = 'none';
+        container.style.display = 'flex';
+    }
+
+    setupControls() {
+        const powerBtn = document.getElementById('vm-power-btn');
+        const resetBtn = document.getElementById('vm-reset-btn');
+        const statusEl = document.getElementById('vm-status');
+        const statusDot = statusEl.querySelector('.status-dot');
+        const statusText = statusEl.querySelector('span:last-child');
+
+        // Power button
+        powerBtn.addEventListener('click', () => {
+            if (!this.poweredOn) {
+                this.vm.run();
+                powerBtn.innerHTML = '<i class="fas fa-power-off"></i>';
+                statusDot.classList.add('running');
+                statusText.textContent = 'Running';
+                this.poweredOn = true;
+            } else {
+                this.vm.stop();
+                powerBtn.innerHTML = '<i class="fas fa-power-off"></i>';
+                statusDot.classList.remove('running');
+                statusText.textContent = 'Stopped';
+                this.poweredOn = false;
+            }
+        });
+
+        // Reset button
+        resetBtn.addEventListener('click', () => {
+            if (this.vm) {
+                this.vm.restart();
+                statusText.textContent = 'Resetting...';
+                statusDot.classList.add('loading');
+                setTimeout(() => {
+                    statusDot.classList.remove('loading');
+                    statusText.textContent = 'Running';
+                }, 2000);
+            }
+        });
+
+        // Update status when VM starts
+        this.vm.add_listener("screen-update", () => {
+            if (!this.poweredOn) {
+                statusDot.classList.add('running');
+                statusText.textContent = 'Running';
+                this.poweredOn = true;
+            }
+        });
+    }
+
+    updateStatus(message) {
+        const statusEl = document.getElementById('splash-status');
+        if (statusEl) {
+            statusEl.textContent = message;
+        }
     }
 }
 
-// Initialize desktop environment when page loads
+// Initialize when page loads
 document.addEventListener('DOMContentLoaded', () => {
-    new DesktopEnvironment();
+    new AzaleaLoader();
 });
-

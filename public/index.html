@@ -3,116 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Azalea Linux Desktop</title>
+    <title>azalea.</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
 </head>
 <body>
-    <div id="desktop" class="desktop">
-        <!-- Desktop Icons -->
-        <div class="desktop-icons">
-            <div class="desktop-icon" data-app="terminal">
-                <i class="fas fa-terminal"></i>
-                <span>Terminal</span>
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="splash-screen">
+        <div class="splash-content">
+            <div class="azalea-logo">
+                <div class="logo-text">azalea.</div>
+                <div class="logo-subtitle">Linux in your browser</div>
             </div>
-            <div class="desktop-icon" data-app="files">
-                <i class="fas fa-folder"></i>
-                <span>Files</span>
+            <div class="splash-loader">
+                <div class="loader-dot"></div>
+                <div class="loader-dot"></div>
+                <div class="loader-dot"></div>
             </div>
-            <div class="desktop-icon" data-app="browser">
-                <i class="fas fa-globe"></i>
-                <span>Browser</span>
-            </div>
-            <div class="desktop-icon" data-app="editor">
-                <i class="fas fa-code"></i>
-                <span>Editor</span>
-            </div>
-            <div class="desktop-icon" data-app="vm">
-                <i class="fas fa-microchip"></i>
-                <span>VM</span>
-            </div>
-            <div class="desktop-icon" data-app="linux">
-                <i class="fab fa-linux"></i>
-                <span>Linux</span>
-            </div>
+            <div class="splash-status" id="splash-status">Initializing...</div>
         </div>
+    </div>
 
-        <!-- Windows Container -->
-        <div id="windows-container"></div>
-
-        <!-- Taskbar -->
-        <div class="taskbar">
-            <div class="taskbar-left">
-                <button class="start-button" id="start-button">
-                    <i class="fas fa-bars"></i>
-                    <span>Applications</span>
-                </button>
-            </div>
-            <div class="taskbar-center" id="taskbar-apps"></div>
-            <div class="taskbar-right">
-                <div class="system-tray">
-                    <div class="tray-icon" id="clock">
-                        <i class="fas fa-clock"></i>
-                        <span id="time"></span>
-                    </div>
-                    <div class="tray-icon">
-                        <i class="fas fa-wifi"></i>
-                    </div>
-                    <div class="tray-icon">
-                        <i class="fas fa-volume-up"></i>
-                    </div>
-                </div>
-            </div>
+    <!-- Linux VM Container -->
+    <div id="linux-container" class="linux-container" style="display: none;">
+        <div class="linux-vm-wrapper">
+            <div id="linux-vm-screen" class="linux-vm-screen"></div>
         </div>
-
-        <!-- Start Menu -->
-        <div class="start-menu" id="start-menu">
-            <div class="start-menu-header">
-                <h3>Applications</h3>
-            </div>
-            <div class="start-menu-items">
-                <div class="start-menu-item" data-app="terminal">
-                    <i class="fas fa-terminal"></i>
-                    <span>Terminal</span>
-                </div>
-                <div class="start-menu-item" data-app="files">
-                    <i class="fas fa-folder"></i>
-                    <span>File Manager</span>
-                </div>
-                <div class="start-menu-item" data-app="browser">
-                    <i class="fas fa-globe"></i>
-                    <span>Web Browser</span>
-                </div>
-                <div class="start-menu-item" data-app="editor">
-                    <i class="fas fa-code"></i>
-                    <span>Text Editor</span>
-                </div>
-                <div class="start-menu-item" data-app="settings">
-                    <i class="fas fa-cog"></i>
-                    <span>Settings</span>
-                </div>
-                <div class="start-menu-item" data-app="vm">
-                    <i class="fas fa-microchip"></i>
-                    <span>Virtual Machine</span>
-                </div>
-                <div class="start-menu-item" data-app="linux">
-                    <i class="fab fa-linux"></i>
-                    <span>Linux VM</span>
-                </div>
+        <div class="vm-controls-bar">
+            <button id="vm-power-btn" class="control-btn">
+                <i class="fas fa-power-off"></i>
+            </button>
+            <button id="vm-reset-btn" class="control-btn">
+                <i class="fas fa-redo"></i>
+            </button>
+            <div class="vm-status" id="vm-status">
+                <span class="status-dot"></span>
+                <span>Ready</span>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="linux-vm.js"></script>
-    <script src="enhancements.js"></script>
-    <script src="vm-display.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
-
